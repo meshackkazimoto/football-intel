@@ -1,0 +1,10 @@
+{
+  "name": "@football-intel/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/server.ts",
+    "build": "echo \"build later\"",
+    "typecheck": "tsc --noEmit"
+  }
+}

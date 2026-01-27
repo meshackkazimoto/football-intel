@@ -1,0 +1,1 @@
+console.log("⚽ football-intel API starting...");
