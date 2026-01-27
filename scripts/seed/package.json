@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "seed": "bun run index.ts"
+    "seed": "bun run index.ts",
+    "stats": "bun run compute-stats.ts"
   },
   "dependencies": {
     "@football-intel/db": "workspace:*",
