@@ -177,3 +177,32 @@ export const playerSeasonStats = pgTable(
   })
 );
 
+export const leagueStandings = pgTable(
+  "league_standings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    seasonId: uuid("season_id")
+      .references(() => seasons.id)
+      .notNull(),
+    teamId: uuid("team_id")
+      .references(() => teams.id)
+      .notNull(),
+
+    played: integer("played").default(0).notNull(),
+    wins: integer("wins").default(0).notNull(),
+    draws: integer("draws").default(0).notNull(),
+    losses: integer("losses").default(0).notNull(),
+    goalsFor: integer("goals_for").default(0).notNull(),
+    goalsAgainst: integer("goals_against").default(0).notNull(),
+    goalDifference: integer("goal_difference").default(0).notNull(),
+    points: integer("points").default(0).notNull(),
+
+    lastComputedAt: timestamp("last_computed_at").defaultNow().notNull()
+  },
+  (table) => ({
+    uniqueSeasonTeam: unique("unique_season_team").on(
+      table.seasonId,
+      table.teamId
+    )
+  })
+);

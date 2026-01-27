@@ -43,6 +43,13 @@
       "when": 1769555782226,
       "tag": "0005_bumpy_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1769555982285,
+      "tag": "0006_cute_ser_duncan",
+      "breakpoints": true
     }
   ]
 }

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "seed": "bun run index.ts",
-    "stats": "bun run compute-stats.ts"
+    "stats": "bun run compute-stats.ts",
+    "standings": "bun run compute-standings.ts"
   },
   "dependencies": {
     "@football-intel/db": "workspace:*",
