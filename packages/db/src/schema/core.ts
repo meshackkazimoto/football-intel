@@ -1,3 +1,4 @@
+import { relations } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -206,3 +207,131 @@ export const leagueStandings = pgTable(
     )
   })
 );
+
+// relations
+export const countriesRelations = relations(countries, ({ many }) => ({
+  leagues: many(leagues),
+  clubs: many(clubs),
+  players: many(players), // for nationality
+}));
+
+export const leaguesRelations = relations(leagues, ({ one, many }) => ({
+  country: one(countries, {
+    fields: [leagues.countryId],
+    references: [countries.id],
+  }),
+  seasons: many(seasons),
+}));
+
+export const clubsRelations = relations(clubs, ({ one, many }) => ({
+  country: one(countries, {
+    fields: [clubs.countryId],
+    references: [countries.id],
+  }),
+  teams: many(teams),
+}));
+
+export const seasonsRelations = relations(seasons, ({ one, many }) => ({
+  league: one(leagues, {
+    fields: [seasons.leagueId],
+    references: [leagues.id],
+  }),
+  teams: many(teams),
+  matches: many(matches),
+  standings: many(leagueStandings),
+}));
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  club: one(clubs, {
+    fields: [teams.clubId],
+    references: [clubs.id],
+  }),
+  season: one(seasons, {
+    fields: [teams.seasonId],
+    references: [seasons.id],
+  }),
+  homeMatches: many(matches, { relationName: "homeTeam" }),
+  awayMatches: many(matches, { relationName: "awayTeam" }),
+  contracts: many(playerContracts),
+  standings: many(leagueStandings),
+}));
+
+export const playersRelations = relations(players, ({ one, many }) => ({
+  nationality: one(countries, {
+    fields: [players.nationalityId],
+    references: [countries.id],
+  }),
+  contracts: many(playerContracts),
+  stats: many(playerSeasonStats),
+  events: many(matchEvents),
+}));
+
+export const playerContractsRelations = relations(playerContracts, ({ one }) => ({
+  player: one(players, {
+    fields: [playerContracts.playerId],
+    references: [players.id],
+  }),
+  team: one(teams, {
+    fields: [playerContracts.teamId],
+    references: [teams.id],
+  }),
+}));
+
+export const matchesRelations = relations(matches, ({ one, many }) => ({
+  season: one(seasons, {
+    fields: [matches.seasonId],
+    references: [seasons.id],
+  }),
+  homeTeam: one(teams, {
+    fields: [matches.homeTeamId],
+    references: [teams.id],
+    relationName: "homeTeam",
+  }),
+  awayTeam: one(teams, {
+    fields: [matches.awayTeamId],
+    references: [teams.id],
+    relationName: "awayTeam",
+  }),
+  events: many(matchEvents),
+}));
+
+export const matchEventsRelations = relations(matchEvents, ({ one }) => ({
+  match: one(matches, {
+    fields: [matchEvents.matchId],
+    references: [matches.id],
+  }),
+  team: one(teams, {
+    fields: [matchEvents.teamId],
+    references: [teams.id],
+  }),
+  player: one(players, {
+    fields: [matchEvents.playerId],
+    references: [players.id],
+  }),
+}));
+
+export const leagueStandingsRelations = relations(leagueStandings, ({ one }) => ({
+  season: one(seasons, {
+    fields: [leagueStandings.seasonId],
+    references: [seasons.id],
+  }),
+  team: one(teams, {
+    fields: [leagueStandings.teamId],
+    references: [teams.id],
+  }),
+}));
+
+export const playerSeasonStatsRelations = relations(playerSeasonStats, ({ one }) => ({
+  player: one(players, {
+    fields: [playerSeasonStats.playerId],
+    references: [players.id],
+  }),
+  season: one(seasons, {
+    fields: [playerSeasonStats.seasonId],
+    references: [seasons.id],
+  }),
+  team: one(teams, {
+    fields: [playerSeasonStats.teamId],
+    references: [teams.id],
+  }),
+}));

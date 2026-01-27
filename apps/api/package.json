@@ -6,5 +6,11 @@
     "dev": "bun run src/server.ts",
     "build": "echo \"build later\"",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@football-intel/db": "workspace:*",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.11.7"
   }
 }
