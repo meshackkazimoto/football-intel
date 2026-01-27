@@ -78,3 +78,33 @@ export const teams = pgTable(
     )
   })
 );
+
+export const players = pgTable("players", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  fullName: varchar("full_name", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  dateOfBirth: date("date_of_birth"),
+  nationalityId: uuid("nationality_id").references(() => countries.id),
+  preferredFoot: varchar("preferred_foot", { length: 10 }), // left | right | both
+  height: integer("height"),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const playerContracts = pgTable("player_contracts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  playerId: uuid("player_id")
+    .references(() => players.id)
+    .notNull(),
+  teamId: uuid("team_id")
+    .references(() => teams.id)
+    .notNull(),
+  position: varchar("position", { length: 50 }).notNull(), // GK, DF, MF, FW
+  jerseyNumber: integer("jersey_number"),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  isCurrent: boolean("is_current").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+

@@ -1,5 +1,5 @@
 import { db } from "@football-intel/db/src/client";
-import { countries, leagues, clubs, teams, seasons } from "@football-intel/db/src/schema/core";
+import { countries, leagues, clubs, teams, seasons, playerContracts, players } from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
 
 async function seed() {
@@ -139,6 +139,84 @@ async function seed() {
 
     console.log(`Team registered: ${club.name} (${currentSeason.name})`);
   }
+  
+  // 6. Players
+  const playerData = [
+    {
+      firstName: "Clatous",
+      lastName: "Chama",
+      fullName: "Clatous Chama",
+      slug: "clatous-chama",
+      preferredFoot: "right",
+      position: "MF",
+      teamName: "Young Africans SC",
+      jerseyNumber: 17
+    },
+    {
+      firstName: "John",
+      lastName: "Bocco",
+      fullName: "John Bocco",
+      slug: "john-bocco",
+      preferredFoot: "right",
+      position: "FW",
+      teamName: "Young Africans SC",
+      jerseyNumber: 9
+    },
+    {
+      firstName: "Sadio",
+      lastName: "Kanoute",
+      fullName: "Sadio Kanoute",
+      slug: "sadio-kanoute",
+      preferredFoot: "right",
+      position: "MF",
+      teamName: "Simba SC",
+      jerseyNumber: 8
+    }
+  ];
+
+  for (const p of playerData) {
+    const [inserted] = await db
+      .insert(players)
+      .values({
+        firstName: p.firstName,
+        lastName: p.lastName,
+        fullName: p.fullName,
+        slug: p.slug,
+        nationalityId: country.id,
+        preferredFoot: p.preferredFoot
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    const player =
+      inserted ??
+      (await db.query.players.findFirst({
+        where: eq(players.slug, p.slug)
+      }));
+
+    if (!player) continue;
+
+    const team = await db.query.teams.findFirst({
+      where: eq(teams.name, p.teamName)
+    });
+
+    if (!team) continue;
+
+    await db
+      .insert(playerContracts)
+      .values({
+        playerId: player.id,
+        teamId: team.id,
+        position: p.position,
+        jerseyNumber: p.jerseyNumber,
+        startDate: "2023-07-01",
+        isCurrent: true
+      })
+      .onConflictDoNothing();
+
+    console.log(`Player: ${player.fullName} → ${p.teamName}`);
+  }
+
 }
 
 seed()
