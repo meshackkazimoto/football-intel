@@ -1,5 +1,5 @@
 import { db } from "@football-intel/db/src/client";
-import { countries, leagues, clubs, teams, seasons, playerContracts, players } from "@football-intel/db/src/schema/core";
+import { countries, leagues, clubs, teams, seasons, playerContracts, players, matchEvents, matches } from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
 
 async function seed() {
@@ -35,17 +35,17 @@ async function seed() {
     })
     .onConflictDoNothing()
     .returning();
-  
+
   const league =
     nbcLeague ??
     (await db.query.leagues.findFirst({
       where: eq(leagues.name, "NBC Premier League"),
     }));
-  
+
   if (!league) {
     throw new Error("League not found or created");
   }
-  
+
   console.log("League:", league.name);
 
   console.log("League: NBC Premier League");
@@ -98,7 +98,7 @@ async function seed() {
 
     console.log(`Club: ${club.name}`);
   }
-  
+
   const [season] = await db
     .insert(seasons)
     .values({
@@ -122,7 +122,7 @@ async function seed() {
   }
 
   console.log("Season:", currentSeason.name);
-  
+
   const clubList = await db.query.clubs.findMany({
     where: eq(clubs.countryId, country.id)
   });
@@ -139,7 +139,7 @@ async function seed() {
 
     console.log(`Team registered: ${club.name} (${currentSeason.name})`);
   }
-  
+
   // 6. Players
   const playerData = [
     {
@@ -216,6 +216,85 @@ async function seed() {
 
     console.log(`Player: ${player.fullName} → ${p.teamName}`);
   }
+
+  // 7. Match (Simba vs Young Africans)
+  const simba = await db.query.teams.findFirst({
+    where: eq(teams.name, "Simba SC")
+  });
+
+  const yanga = await db.query.teams.findFirst({
+    where: eq(teams.name, "Young Africans SC")
+  });
+
+  if (!simba || !yanga) {
+    throw new Error("❌ Teams not found for match");
+  }
+
+  const [match] = await db
+    .insert(matches)
+    .values({
+      seasonId: currentSeason.id,
+      homeTeamId: simba.id,
+      awayTeamId: yanga.id,
+      matchDate: new Date("2023-11-05T16:00:00Z"),
+      venue: "Benjamin Mkapa Stadium",
+      status: "finished",
+      homeScore: 1,
+      awayScore: 1
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  const game =
+    match ??
+    (await db.query.matches.findFirst({
+      where: eq(matches.venue, "Benjamin Mkapa Stadium")
+    }));
+
+  if (!game) throw new Error("❌ Match not created");
+
+  console.log("Match: Simba SC 1–1 Young Africans SC");
+
+  // 8. Match Events
+  const chama = await db.query.players.findFirst({
+    where: eq(players.slug, "clatous-chama")
+  });
+
+  const kanoute = await db.query.players.findFirst({
+    where: eq(players.slug, "sadio-kanoute")
+  });
+
+  if (!chama || !kanoute) {
+    throw new Error("❌ Players not found for events");
+  }
+
+  const events = [
+    {
+      eventType: "goal",
+      minute: 34,
+      playerId: kanoute.id,
+      teamId: simba.id
+    },
+    {
+      eventType: "goal",
+      minute: 71,
+      playerId: chama.id,
+      teamId: yanga.id
+    }
+  ];
+
+  for (const e of events) {
+    await db
+      .insert(matchEvents)
+      .values({
+        matchId: game.id,
+        ...e
+      })
+      .onConflictDoNothing();
+
+    console.log(`Event: ${e.eventType} at ${e.minute}'`);
+  }
+
 
 }
 

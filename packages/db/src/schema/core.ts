@@ -8,7 +8,8 @@ import {
   boolean,
   jsonb,
   date,
-  unique
+  unique,
+  index
 } from "drizzle-orm/pg-core";
 
 export const countries = pgTable("countries", {
@@ -108,3 +109,41 @@ export const playerContracts = pgTable("player_contracts", {
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
+export const matches = pgTable("matches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  seasonId: uuid("season_id")
+    .references(() => seasons.id)
+    .notNull(),
+  homeTeamId: uuid("home_team_id")
+    .references(() => teams.id)
+    .notNull(),
+  awayTeamId: uuid("away_team_id")
+    .references(() => teams.id)
+    .notNull(),
+  matchDate: timestamp("match_date").notNull(),
+  venue: varchar("venue", { length: 200 }),
+  status: varchar("status", { length: 20 }).notNull(), // scheduled | finished
+  homeScore: integer("home_score"),
+  awayScore: integer("away_score"),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const matchEvents = pgTable(
+  "match_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    matchId: uuid("match_id")
+      .references(() => matches.id)
+      .notNull(),
+    teamId: uuid("team_id")
+      .references(() => teams.id)
+      .notNull(),
+    playerId: uuid("player_id").references(() => players.id),
+    eventType: varchar("event_type", { length: 50 }).notNull(), // goal, yellow_card
+    minute: integer("minute").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull()
+  },
+  (table) => ({
+    matchEventIdx: index("match_event_idx").on(table.matchId)
+  })
+);
