@@ -4,7 +4,9 @@ import {
   varchar,
   timestamp,
   integer,
-  text
+  text,
+  boolean,
+  jsonb
 } from "drizzle-orm/pg-core";
 
 export const countries = pgTable("countries", {
@@ -21,5 +23,23 @@ export const leagues = pgTable("leagues", {
     .notNull(),
   name: varchar("name", { length: 200 }).notNull(),
   tier: integer("tier").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const clubs = pgTable("clubs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 200 }).notNull().unique(),
+  countryId: uuid("country_id")
+    .references(() => countries.id)
+    .notNull(),
+  foundedYear: integer("founded_year"),
+  stadiumName: varchar("stadium_name", { length: 200 }),
+  stadiumCapacity: integer("stadium_capacity"),
+  isActive: boolean("is_active").default(true).notNull(),
+  metadata: jsonb("metadata").$type<{
+    colors?: { primary: string; secondary: string };
+    nickname?: string;
+  }>(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
