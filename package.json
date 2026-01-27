@@ -1,16 +1,22 @@
 {
   "name": "football-intel",
-  "version": "0.1.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "packageManager": "bun@latest",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.27.0",
   "devDependencies": {
-    "turbo": "^2.7.6"
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0",
+    "@types/bun": "latest"
   }
 }
