@@ -24,6 +24,13 @@
         "drizzle-kit": "^0.31.8",
       },
     },
+    "scripts/seed": {
+      "name": "@football-intel/seed",
+      "dependencies": {
+        "@football-intel/db": "workspace:*",
+        "drizzle-orm": "^0.45.1",
+      },
+    },
   },
   "packages": {
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
@@ -87,6 +94,8 @@
     "@football-intel/api": ["@football-intel/api@workspace:apps/api"],
 
     "@football-intel/db": ["@football-intel/db@workspace:packages/db"],
+
+    "@football-intel/seed": ["@football-intel/seed@workspace:scripts/seed"],
 
     "@types/bun": ["@types/bun@1.3.7", "", { "dependencies": { "bun-types": "1.3.7" } }, "sha512-lmNuMda+Z9b7tmhA0tohwy8ZWFSnmQm1UDWXtH5r9F7wZCfkeO3Jx7wKQ1EOiKq43yHts7ky6r8SDJQWRNupkA=="],
 
