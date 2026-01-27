@@ -6,7 +6,9 @@ import {
   integer,
   text,
   boolean,
-  jsonb
+  jsonb,
+  date,
+  unique
 } from "drizzle-orm/pg-core";
 
 export const countries = pgTable("countries", {
@@ -43,3 +45,36 @@ export const clubs = pgTable("clubs", {
   }>(),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
+
+export const seasons = pgTable("seasons", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  leagueId: uuid("league_id")
+    .references(() => leagues.id)
+    .notNull(),
+  name: varchar("name", { length: 100 }).notNull(), // e.g. 2023/24
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  isCurrent: boolean("is_current").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+export const teams = pgTable(
+  "teams",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clubId: uuid("club_id")
+      .references(() => clubs.id)
+      .notNull(),
+    seasonId: uuid("season_id")
+      .references(() => seasons.id)
+      .notNull(),
+    name: varchar("name", { length: 200 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull()
+  },
+  (table) => ({
+    uniqueClubSeason: unique("unique_club_season").on(
+      table.clubId,
+      table.seasonId
+    )
+  })
+);

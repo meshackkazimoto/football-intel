@@ -15,6 +15,13 @@
       "when": 1769554738603,
       "tag": "0001_big_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769555085800,
+      "tag": "0002_petite_black_queen",
+      "breakpoints": true
     }
   ]
 }

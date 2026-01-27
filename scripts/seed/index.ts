@@ -1,5 +1,5 @@
 import { db } from "@football-intel/db/src/client";
-import { countries, leagues, clubs } from "@football-intel/db/src/schema/core";
+import { countries, leagues, clubs, teams, seasons } from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
 
 async function seed() {
@@ -26,18 +26,31 @@ async function seed() {
 
   console.log("Country:", country.name);
 
-  await db
+  const [nbcLeague] = await db
     .insert(leagues)
     .values({
       name: "NBC Premier League",
       countryId: country.id,
       tier: 1,
     })
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning();
+  
+  const league =
+    nbcLeague ??
+    (await db.query.leagues.findFirst({
+      where: eq(leagues.name, "NBC Premier League"),
+    }));
+  
+  if (!league) {
+    throw new Error("League not found or created");
+  }
+  
+  console.log("League:", league.name);
 
   console.log("League: NBC Premier League");
   console.log("Seeding complete");
-  
+
   const clubData = [
     {
       name: "Simba SC",
@@ -85,7 +98,47 @@ async function seed() {
 
     console.log(`Club: ${club.name}`);
   }
+  
+  const [season] = await db
+    .insert(seasons)
+    .values({
+      name: "2023/24",
+      leagueId: league.id,
+      startDate: "2023-08-01",
+      endDate: "2024-06-30",
+      isCurrent: true
+    })
+    .onConflictDoNothing()
+    .returning();
 
+  const currentSeason =
+    season ??
+    (await db.query.seasons.findFirst({
+      where: eq(seasons.name, "2023/24")
+    }));
+
+  if (!currentSeason) {
+    throw new Error("❌ Season not found");
+  }
+
+  console.log("Season:", currentSeason.name);
+  
+  const clubList = await db.query.clubs.findMany({
+    where: eq(clubs.countryId, country.id)
+  });
+
+  for (const club of clubList) {
+    await db
+      .insert(teams)
+      .values({
+        clubId: club.id,
+        seasonId: currentSeason.id,
+        name: club.name
+      })
+      .onConflictDoNothing();
+
+    console.log(`Team registered: ${club.name} (${currentSeason.name})`);
+  }
 }
 
 seed()
