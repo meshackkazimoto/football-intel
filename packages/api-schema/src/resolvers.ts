@@ -1,3 +1,4 @@
+import { withCache } from "@football-intel/cache";
 import { db } from "@football-intel/db/src/client";
 import {
   clubs,
@@ -10,7 +11,9 @@ import { eq } from "drizzle-orm";
 export const resolvers = {
   Query: {
     clubs: async () => {
-      return db.query.clubs.findMany();
+      return await withCache("clubs", 60 * 60, async () => {
+        return db.query.clubs.findMany();
+      });
     },
 
     players: async () => {
