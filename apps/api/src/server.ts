@@ -12,6 +12,7 @@ import {
   leagueStandings,
 } from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
+import { yoga } from "./graphql/server";
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
@@ -109,6 +110,10 @@ app.get("/standings", async (c) => {
   });
 
   return c.json(data);
+});
+
+app.use("/graphql", async (c) => {
+  return yoga.fetch(c.req.raw, c);
 });
 
 export default {

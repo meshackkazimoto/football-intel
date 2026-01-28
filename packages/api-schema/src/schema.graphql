@@ -1,0 +1,27 @@
+type Query {
+  clubs: [Club!]!
+  players: [Player!]!
+  standings(seasonId: ID!): [Standing!]!
+}
+
+type Club {
+  id: ID!
+  name: String!
+  slug: String!
+}
+
+type Player {
+  id: ID!
+  fullName: String!
+  slug: String!
+}
+
+type Standing {
+  teamName: String!
+  played: Int!
+  wins: Int!
+  draws: Int!
+  losses: Int!
+  goalDifference: Int!
+  points: Int!
+}

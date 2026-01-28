@@ -9,8 +9,10 @@
   },
   "dependencies": {
     "@football-intel/db": "workspace:*",
+    "@football-intel/api-schema": "workspace:*",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
+    "graphql-yoga": "^5.18.0",
     "hono": "^4.11.7"
   }
 }
