@@ -5,6 +5,7 @@
   "scripts": {
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
+    "drop": "drizzle-kit drop",
     "studio": "drizzle-kit studio"
   },
   "dependencies": {

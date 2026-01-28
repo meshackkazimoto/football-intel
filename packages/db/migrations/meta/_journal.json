@@ -50,6 +50,13 @@
       "when": 1769555982285,
       "tag": "0006_cute_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1769629080330,
+      "tag": "0007_tough_blink",
+      "breakpoints": true
     }
   ]
 }

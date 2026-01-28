@@ -8,11 +8,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@football-intel/db": "workspace:*",
     "@football-intel/api-schema": "workspace:*",
+    "@football-intel/config": "workspace:*",
+    "@football-intel/db": "workspace:*",
+    "@lucia-auth/adapter-drizzle": "^1.1.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
     "graphql-yoga": "^5.18.0",
-    "hono": "^4.11.7"
+    "hono": "^4.11.7",
+    "lucia": "^3.2.2"
   }
 }

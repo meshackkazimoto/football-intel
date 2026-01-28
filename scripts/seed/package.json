@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "seed": "bun run src/index.ts",
-    "stats": "bun run src/compute-stats.ts",
+    "stats" : "bun run src/compute-stats.ts",
     "standings": "bun run src/compute-standings.ts"
   },
   "dependencies": {
