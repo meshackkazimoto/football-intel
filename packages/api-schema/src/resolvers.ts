@@ -17,27 +17,37 @@ export const resolvers = {
       return db.query.players.findMany();
     },
 
-    standings: async (_: unknown, args: { seasonId: string }) => {
+    standings: async (_: unknown, args: { seasonId: string }, ctx: any) => {
+      if (!ctx.user) {
+        throw new Error("UNAUTHENTICATED");
+      }
+
       const rows = await db.query.leagueStandings.findMany({
         where: eq(leagueStandings.seasonId, args.seasonId),
-        with: {
-          team: true
-        },
         orderBy: (s, { desc }) => [
           desc(s.points),
           desc(s.goalDifference)
         ]
       });
 
-      return rows.map((r) => ({
-        teamName: r.team.name,
-        played: r.played,
-        wins: r.wins,
-        draws: r.draws,
-        losses: r.losses,
-        goalDifference: r.goalDifference,
-        points: r.points
-      }));
+      return Promise.all(
+        rows.map(async (r) => {
+          const team = await ctx.loaders.teamById.load(r.teamId);
+          const club = team
+            ? await ctx.loaders.clubById.load(team.clubId)
+            : null;
+
+          return {
+            teamName: club?.name ?? "Unknown",
+            played: r.played,
+            wins: r.wins,
+            draws: r.draws,
+            losses: r.losses,
+            goalDifference: r.goalDifference,
+            points: r.points
+          };
+        })
+      );
     }
   }
 };

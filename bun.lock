@@ -16,6 +16,7 @@
         "@football-intel/api-schema": "workspace:*",
         "@football-intel/config": "workspace:*",
         "@football-intel/db": "workspace:*",
+        "@football-intel/domain": "workspace:*",
         "@lucia-auth/adapter-drizzle": "^1.1.0",
         "dotenv": "^17.2.3",
         "drizzle-orm": "^0.45.1",
@@ -47,6 +48,14 @@
       },
       "devDependencies": {
         "drizzle-kit": "^0.31.8",
+      },
+    },
+    "packages/domain": {
+      "name": "@football-intel/domain",
+      "dependencies": {
+        "@football-intel/db": "workspace:*",
+        "dataloader": "^2.2.3",
+        "drizzle-orm": "^0.45.1",
       },
     },
     "scripts/seed": {
@@ -132,6 +141,8 @@
 
     "@football-intel/db": ["@football-intel/db@workspace:packages/db"],
 
+    "@football-intel/domain": ["@football-intel/domain@workspace:packages/domain"],
+
     "@football-intel/seed": ["@football-intel/seed@workspace:scripts/seed"],
 
     "@graphql-tools/executor": ["@graphql-tools/executor@1.5.1", "", { "dependencies": { "@graphql-tools/utils": "^11.0.0", "@graphql-typed-document-node/core": "^3.2.0", "@repeaterjs/repeater": "^3.0.4", "@whatwg-node/disposablestack": "^0.0.6", "@whatwg-node/promise-helpers": "^1.0.0", "tslib": "^2.4.0" }, "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0" } }, "sha512-n94Qcu875Mji9GQ52n5UbgOTxlgvFJicBPYD+FRks9HKIQpdNPjkkrKZUYNG51XKa+bf03rxNflm4+wXhoHHrA=="],
@@ -185,6 +196,8 @@
     "bun-types": ["bun-types@1.3.7", "", { "dependencies": { "@types/node": "*" } }, "sha512-qyschsA03Qz+gou+apt6HNl6HnI+sJJLL4wLDke4iugsE6584CMupOtTY1n+2YC9nGVrEKUlTs99jjRLKgWnjQ=="],
 
     "cross-inspect": ["cross-inspect@1.0.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-Pcw1JTvZLSJH83iiGWt6fRcT+BjZlCDRVwYLbUcHzv/CRpB7r0MlSrGbIyQvVSNyGnbt7G4AXuyCiDR3POvZ1A=="],
+
+    "dataloader": ["dataloader@2.2.3", "", {}, "sha512-y2krtASINtPFS1rSDjacrFgn1dcUuoREVabwlOGOe4SdxenREqwjwjElAdwvbGM7kgZz9a3KVicWR7vcz8rnzA=="],
 
     "debug": ["debug@4.4.3", "", { "dependencies": { "ms": "^2.1.3" } }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
 
