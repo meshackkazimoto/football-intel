@@ -17,6 +17,7 @@ import admin from "./rest/routes/admin";
 import { logger } from "@football-intel/logger";
 import metricsRoutes from "./rest/routes/metrics"
 import { requestId } from "./utils/tracing";
+import { createRateLimiter } from "./middleware/rate-limit";
 
 dotenv.config();
 
@@ -31,14 +32,14 @@ app.route("/metrics", metricsRoutes);
 /**
  * Health
  */
-app.get("/health", (c) => {
+app.get("/health", createRateLimiter(100, 60), (c) => {
   return c.json({ status: "ok", service: "football-intel-api" });
 });
 
 /**
  * Countries
  */
-app.get("/countries", async (c) => {
+app.get("/countries", createRateLimiter(100, 60), async (c) => {
   const data = await db.query.countries.findMany();
   return c.json(data);
 });
@@ -122,7 +123,7 @@ app.get("/standings", async (c) => {
   return c.json(data);
 });
 
-app.use("/graphql", async (c) => {
+app.use("/graphql", createRateLimiter(60, 60), async (c) => {
   return yoga.fetch(c.req.raw, c);
 });
 

@@ -14,6 +14,7 @@
     "@football-intel/domain": "workspace:*",
     "@football-intel/logger": "workspace:*",
     "@football-intel/metrics": "workspace:*",
+    "@football-intel/rate-limit": "workspace:*",
     "@football-intel/validation": "workspace:*",
     "@football-intel/queue": "workspace:*",
     "@lucia-auth/adapter-drizzle": "^1.1.0",

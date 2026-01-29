@@ -20,6 +20,7 @@
         "@football-intel/logger": "workspace:*",
         "@football-intel/metrics": "workspace:*",
         "@football-intel/queue": "workspace:*",
+        "@football-intel/rate-limit": "workspace:*",
         "@football-intel/validation": "workspace:*",
         "@lucia-auth/adapter-drizzle": "^1.1.0",
         "dotenv": "^17.2.3",
@@ -96,6 +97,18 @@
       "dependencies": {
         "bullmq": "^5.0.0",
         "ioredis": "^5.9.2",
+      },
+    },
+    "packages/rate-limit": {
+      "name": "@football-intel/rate-limit",
+      "dependencies": {
+        "ioredis": "^5.9.2",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
       },
     },
     "packages/validation": {
@@ -214,6 +227,8 @@
     "@football-intel/metrics": ["@football-intel/metrics@workspace:packages/metrics"],
 
     "@football-intel/queue": ["@football-intel/queue@workspace:packages/queue"],
+
+    "@football-intel/rate-limit": ["@football-intel/rate-limit@workspace:packages/rate-limit"],
 
     "@football-intel/seed": ["@football-intel/seed@workspace:scripts/seed"],
 

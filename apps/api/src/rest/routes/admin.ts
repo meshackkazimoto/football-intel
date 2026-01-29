@@ -9,6 +9,7 @@ import {
 import { eq } from "drizzle-orm";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
+import { createRateLimiter } from "src/middleware/rate-limit";
 
 console.log("Admin routes module loading...");
 
@@ -47,7 +48,7 @@ app.use("*", async (c, next) => {
   return next();
 });
 
-app.post("/ingest", async (c) => {
+app.post("/ingest", createRateLimiter(20, 60), async (c) => {
   const body = await c.req.json();
 
   const [row] = await db
