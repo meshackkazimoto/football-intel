@@ -57,16 +57,20 @@ app.get("/health", createRateLimiter(100, 60), (c) => {
 });
 
 // REST Routes
-app.route("/admin", adminRoutes);
-app.route("/metrics", metricsRoutes);
-app.route("/search", searchRoutes);
-app.route("/matches", matchRoutes);
-app.route("/leagues", leagueRoutes);
-app.route("/players", playerRoutes);
-app.route("/teams", teamRoutes);
-app.route("/countries", countryRoutes);
-app.route("/clubs", clubRoutes);
-app.route("/auth", authRoutes);
+const v1 = new Hono<Env>();
+
+v1.route("/admin", adminRoutes);
+v1.route("/metrics", metricsRoutes);
+v1.route("/search", searchRoutes);
+v1.route("/matches", matchRoutes);
+v1.route("/leagues", leagueRoutes);
+v1.route("/players", playerRoutes);
+v1.route("/teams", teamRoutes);
+v1.route("/countries", countryRoutes);
+v1.route("/clubs", clubRoutes);
+v1.route("/auth", authRoutes);
+
+app.route("/v1", v1);
 
 // GraphQL
 app.use("/graphql", createRateLimiter(60, 60), async (c) => {
@@ -74,6 +78,6 @@ app.use("/graphql", createRateLimiter(60, 60), async (c) => {
 });
 
 export default {
-  port: 3000,
+  port: 3001,
   fetch: app.fetch,
 };

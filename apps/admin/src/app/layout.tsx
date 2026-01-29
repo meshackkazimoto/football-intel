@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Header } from "@/components/layout/header";
+import { QueryProvider } from "@/providers/query-provider";
 
 const poppins = Poppins({
   weight: ["300", "400", "500", "600", "700", "800", "900"],
@@ -23,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.variable} font-sans antialiased bg-slate-50`}>
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

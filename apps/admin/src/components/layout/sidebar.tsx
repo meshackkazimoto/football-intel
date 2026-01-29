@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Settings,
@@ -14,6 +14,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMutation } from "@tanstack/react-query";
+import { authService } from "@/services/auth/auth.service";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -26,15 +28,14 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
-  const handleLogout = async () => {
-    try {
-      await fetch("http://localhost:3000/auth/logout", { method: "POST" });
-      window.location.href = "/login";
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
-  };
+  const logoutMutation = useMutation({
+    mutationFn: authService.logout,
+    onSuccess: () => {
+      router.push("/login");
+    },
+  });
 
   return (
     <div className="flex h-full w-64 flex-col bg-slate-900 text-white font-sans">
@@ -88,8 +89,9 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-slate-800/50">
         <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-2xl transition-all group"
+          onClick={() => logoutMutation.mutate()}
+          disabled={logoutMutation.isPending}
+          className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-2xl transition-all group disabled:opacity-50"
         >
           <LogOut className="w-5 h-5 group-hover:rotate-12 transition-transform" />
           <span className="font-bold tracking-tight">Sign Out</span>
