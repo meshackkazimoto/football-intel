@@ -85,17 +85,20 @@ app.post("/verify/:id", async (c) => {
   if (!ingestion) {
     return c.json({ error: "Ingestion not found" }, 404);
   }
-  
+
   logger.info({
     route: "verify",
     ingestionId: id,
-    userId: c.get("user")?.id
+    userId: c.get("user")?.id,
   });
 
   // 3. Dispatch queue job depending on type
   const payload = ingestion.rawPayload as {
     matchId?: string;
     seasonId?: string;
+    id?: string;
+    fullName?: string;
+    clubName?: string;
   };
 
   switch (ingestion.type) {
@@ -113,6 +116,14 @@ app.post("/verify/:id", async (c) => {
           seasonId: payload.seasonId,
         });
       }
+      break;
+
+    case "PLAYER":
+      await statsQueue.add(StatsJobs.INDEX_PLAYER, {
+        id: payload.id,
+        fullName: payload.fullName,
+        clubName: payload.clubName,
+      });
       break;
   }
 

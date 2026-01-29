@@ -16,7 +16,7 @@ import { yoga } from "./graphql/server";
 import admin from "./rest/routes/admin";
 import { logger } from "@football-intel/logger";
 import metricsRoutes from "./rest/routes/metrics"
-import { requestId } from "./utils/tracing";
+import searchRoutes from "./rest/routes/search";
 import { createRateLimiter } from "./middleware/rate-limit";
 
 dotenv.config();
@@ -28,6 +28,7 @@ const app = new Hono();
 
 app.route("/admin", admin);
 app.route("/metrics", metricsRoutes);
+app.route("/search", searchRoutes);
 
 /**
  * Health

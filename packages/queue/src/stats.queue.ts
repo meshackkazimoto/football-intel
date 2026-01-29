@@ -7,5 +7,6 @@ export const statsQueue = new Queue("stats", {
 
 export const StatsJobs = {
   RECOMPUTE_STATS: "RECOMPUTE_STATS",
-  RECOMPUTE_STANDINGS: "RECOMPUTE_STANDINGS"
+  RECOMPUTE_STANDINGS: "RECOMPUTE_STANDINGS",
+  INDEX_PLAYER: "INDEX_PLAYER",
 };
