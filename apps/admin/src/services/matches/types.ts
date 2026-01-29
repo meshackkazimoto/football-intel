@@ -20,7 +20,7 @@ export const createMatchSchema = z.object({
   venue: z.string().optional(),
   status: z
     .enum(["scheduled", "live", "finished", "postponed", "cancelled"])
-    .default("scheduled"),
+    .optional(),
 });
 
 export const updateMatchSchema = createMatchSchema.partial().extend({

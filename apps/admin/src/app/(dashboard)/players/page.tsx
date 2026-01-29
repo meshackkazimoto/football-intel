@@ -233,56 +233,78 @@ export default function PlayersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {data?.players.map((player) => (
-                  <tr
-                    key={player.id}
-                    className="hover:bg-slate-50/50 transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                          <User className="w-5 h-5 text-emerald-600" />
+                {data?.players && data.players.length > 0 ? (
+                  data.players.map((player) => (
+                    <tr
+                      key={player.id}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <User className="w-5 h-5 text-emerald-600" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">
+                              {player.fullName}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {player.firstName} {player.lastName}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-slate-700">
+                        {player.clubName || "-"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
+                          {player.position || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-600">
+                        {player.nationality || "-"}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                        {player.jerseyNumber ? `#${player.jerseyNumber}` : "-"}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-emerald-600 transition-colors">
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteMutation.mutate(player.id)}
+                            disabled={deleteMutation.isPending}
+                            className="p-2 hover:bg-rose-50 rounded-lg text-slate-600 hover:text-rose-600 transition-colors disabled:opacity-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                          <User className="w-8 h-8 text-slate-400" />
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900">
-                            {player.fullName}
+                          <p className="text-slate-900 font-bold mb-1">
+                            No players found
                           </p>
-                          <p className="text-xs text-slate-500">
-                            {player.firstName} {player.lastName}
+                          <p className="text-sm text-slate-500">
+                            {searchQuery
+                              ? "Try adjusting your search query"
+                              : "Get started by registering your first player"}
                           </p>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-slate-700">
-                      {player.clubName || "-"}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
-                        {player.position || "N/A"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {player.nationality || "-"}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                      {player.jerseyNumber ? `#${player.jerseyNumber}` : "-"}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-emerald-600 transition-colors">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteMutation.mutate(player.id)}
-                          disabled={deleteMutation.isPending}
-                          className="p-2 hover:bg-rose-50 rounded-lg text-slate-600 hover:text-rose-600 transition-colors disabled:opacity-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

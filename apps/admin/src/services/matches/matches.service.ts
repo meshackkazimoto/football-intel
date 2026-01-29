@@ -21,7 +21,10 @@ export const matchesService = {
   },
 
   createMatch: async (input: CreateMatchInput): Promise<Match> => {
-    const { data } = await apiClient.post<Match>("/matches", input);
+    const { data } = await apiClient.post<Match>("/matches", {
+      ...input,
+      status: input.status || "scheduled",
+    });
     return data;
   },
 
