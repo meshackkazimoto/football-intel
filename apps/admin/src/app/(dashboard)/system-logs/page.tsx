@@ -1,174 +1,276 @@
 "use client";
 
-import { CheckCircle2, XCircle, Clock, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { adminService } from "@/services/admin/admin.service";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+  CheckCircle,
+  XCircle,
+  Clock,
+  Eye,
+  Loader2,
+  Filter,
+} from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  verifyIngestionSchema,
+  type VerifyIngestionInput,
+} from "@/services/admin/types";
 
-const logs = [
-  {
-    id: "ING-001",
-    type: "MATCH",
-    source: "Ligi Kuu Scraper",
-    payload: "Simba SC vs Azam FC (2024-05-20)",
-    status: "pending",
-    timestamp: "2024-05-20 14:30:00",
-  },
-  {
-    id: "ING-002",
-    type: "PLAYER",
-    source: "Admin Manual",
-    payload: "Clatous Chama (Contract Update)",
-    status: "verified",
-    timestamp: "2024-05-20 12:15:00",
-  },
-  {
-    id: "ING-003",
-    type: "MATCH_EVENT",
-    source: "Ligi Kuu Scraper",
-    payload: "Goal: John Bocco (45')",
-    status: "pending",
-    timestamp: "2024-05-20 14:45:00",
-  },
-  {
-    id: "ING-004",
-    type: "CLUB",
-    source: "System Sync",
-    payload: "Coastal Union (Stadium Update)",
-    status: "rejected",
-    timestamp: "2024-05-19 18:20:00",
-  },
-];
+export default function SystemLogsPage() {
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "verified" | "rejected"
+  >("all");
+  const [selectedLog, setSelectedLog] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-export default function LogsPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["ingestion-logs", statusFilter],
+    queryFn: () =>
+      adminService.getIngestionLogs(
+        statusFilter === "all" ? {} : { status: statusFilter },
+      ),
+  });
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<VerifyIngestionInput>({
+    resolver: zodResolver(verifyIngestionSchema),
+    defaultValues: { score: 0.9 },
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: VerifyIngestionInput }) =>
+      adminService.verifyIngestion(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingestion-logs"] });
+      setSelectedLog(null);
+      reset();
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id: string) => adminService.rejectIngestion(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ingestion-logs"] });
+    },
+  });
+
+  const onVerify = (input: VerifyIngestionInput) => {
+    if (selectedLog) {
+      verifyMutation.mutate({ id: selectedLog, input });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const badges = {
+      pending: {
+        icon: Clock,
+        color: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+      },
+      verified: {
+        icon: CheckCircle,
+        color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+      },
+      rejected: {
+        icon: XCircle,
+        color: "bg-rose-500/10 text-rose-600 border-rose-500/20",
+      },
+    };
+    const badge = badges[status as keyof typeof badges] || badges.pending;
+    const Icon = badge.icon;
+
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${badge.color}`}
+      >
+        <Icon className="w-3.5 h-3.5" />
+        {status.toUpperCase()}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Ingestion Logs</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+            System Ingestion Logs
+          </h1>
           <p className="text-slate-500 mt-1">
-            Review and verify data coming into the platform.
+            Review and verify incoming data from scrapers and APIs.
           </p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-sm">
-            Refresh Data
-          </button>
+        <div className="flex items-center gap-3">
+          <Filter className="w-5 h-5 text-slate-400" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="verified">Verified</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Payload Preview</TableHead>
-              <TableHead>Timestamp</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {logs.map((log) => (
-              <TableRow key={log.id} className="group">
-                <TableCell className="font-mono text-xs font-bold text-slate-400">
-                  {log.id}
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={cn(
-                      "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ring-1",
-                      log.type === "MATCH" &&
-                        "bg-blue-50 text-blue-600 ring-blue-500/20",
-                      log.type === "PLAYER" &&
-                        "bg-emerald-50 text-emerald-600 ring-emerald-500/20",
-                      log.type === "MATCH_EVENT" &&
-                        "bg-amber-50 text-amber-600 ring-amber-500/20",
-                      log.type === "CLUB" &&
-                        "bg-indigo-50 text-indigo-600 ring-indigo-500/20",
-                    )}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    ID
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Type
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Source
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Created
+                  </th>
+                  <th className="px-6 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data?.logs.map((log) => (
+                  <tr
+                    key={log.id}
+                    className="hover:bg-slate-50/50 transition-colors"
                   >
-                    {log.type}
-                  </span>
-                </TableCell>
-                <TableCell className="font-medium">{log.source}</TableCell>
-                <TableCell className="text-slate-500 truncate max-w-[200px]">
-                  {log.payload}
-                </TableCell>
-                <TableCell className="text-xs text-slate-400 font-medium">
-                  {log.timestamp}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1.5">
-                    {log.status === "pending" && (
-                      <>
-                        <Clock className="w-3.5 h-3.5 text-amber-500" />
-                        <span className="text-xs font-bold text-amber-600">
-                          Pending
-                        </span>
-                      </>
-                    )}
-                    {log.status === "verified" && (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                        <span className="text-xs font-bold text-emerald-600">
-                          Verified
-                        </span>
-                      </>
-                    )}
-                    {log.status === "rejected" && (
-                      <>
-                        <XCircle className="w-3.5 h-3.5 text-rose-500" />
-                        <span className="text-xs font-bold text-rose-600">
-                          Rejected
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex flex-row-reverse gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-emerald-600 transition-all">
-                      <CheckCircle2 className="w-4 h-4" />
-                    </button>
-                    <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-rose-600 transition-all">
-                      <XCircle className="w-4 h-4" />
-                    </button>
-                    <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-all">
-                      <ExternalLink className="w-4 h-4" />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-          <p className="text-xs text-slate-500 font-medium">
-            Showing 4 of 1,240 records
-          </p>
-          <div className="flex gap-2">
-            <button
-              className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-              disabled
-            >
-              Previous
-            </button>
-            <button className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">
-              Next
-            </button>
+                    <td className="px-6 py-4 text-sm font-mono text-slate-600">
+                      {log.id.slice(0, 8)}...
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
+                        {log.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-700">
+                      {log.source}
+                    </td>
+                    <td className="px-6 py-4">{getStatusBadge(log.status)}</td>
+                    <td className="px-6 py-4 text-sm text-slate-500">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() =>
+                            setSelectedLog(
+                              selectedLog === log.id ? null : log.id,
+                            )
+                          }
+                          className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-slate-900 transition-colors"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        {log.status === "pending" && (
+                          <>
+                            <button
+                              onClick={() => setSelectedLog(log.id)}
+                              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors"
+                            >
+                              Verify
+                            </button>
+                            <button
+                              onClick={() => rejectMutation.mutate(log.id)}
+                              disabled={rejectMutation.isPending}
+                              className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          {selectedLog && (
+            <div className="border-t border-slate-200 bg-slate-50 p-6">
+              <h3 className="text-lg font-bold text-slate-900 mb-4">
+                Verify Ingestion
+              </h3>
+              <form onSubmit={handleSubmit(onVerify)} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">
+                    Confidence Score (0-1)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    {...register("score", { valueAsNumber: true })}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  />
+                  {errors.score && (
+                    <p className="text-xs text-rose-500 mt-1">
+                      {errors.score.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">
+                    Notes (Optional)
+                  </label>
+                  <textarea
+                    {...register("notes")}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                    placeholder="Add verification notes..."
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    disabled={verifyMutation.isPending}
+                    className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {verifyMutation.isPending && (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
+                    Confirm Verification
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedLog(null);
+                      reset();
+                    }}
+                    className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

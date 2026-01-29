@@ -1,3 +1,9 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { matchesService } from "@/services/matches/matches.service";
+import { playersService } from "@/services/players/players.service";
+import { adminService } from "@/services/admin/admin.service";
 import {
   TrendingUp,
   Users,
@@ -5,45 +11,64 @@ import {
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
+  Calendar,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
-const stats = [
-  {
-    name: "Total Matches",
-    value: "1,284",
-    change: "+12.5%",
-    trending: "up",
-    icon: TrendingUp,
-    color: "emerald",
-  },
-  {
-    name: "Active Players",
-    value: "4,320",
-    change: "+3.2%",
-    trending: "up",
-    icon: Users,
-    color: "blue",
-  },
-  {
-    name: "Verified Records",
-    value: "89%",
-    change: "+5.4%",
-    trending: "up",
-    icon: ShieldCheck,
-    color: "indigo",
-  },
-  {
-    name: "Pending Tasks",
-    value: "12",
-    change: "-4.1%",
-    trending: "down",
-    icon: AlertCircle,
-    color: "rose",
-  },
-];
+export default function DashboardPage() {
+  const { data: matchesData, isLoading: matchesLoading } = useQuery({
+    queryKey: ["matches", "stats"],
+    queryFn: () => matchesService.getMatches({ limit: 10 }),
+  });
 
-export default function Home() {
+  const { data: playersData, isLoading: playersLoading } = useQuery({
+    queryKey: ["players", "stats"],
+    queryFn: () => playersService.getPlayers({ limit: 10 }),
+  });
+
+  const { data: logsData, isLoading: logsLoading } = useQuery({
+    queryKey: ["ingestion-logs", "pending"],
+    queryFn: () =>
+      adminService.getIngestionLogs({ status: "pending", limit: 5 }),
+  });
+
+  const stats = [
+    {
+      name: "Total Matches",
+      value: matchesData?.total.toString() || "0",
+      change: "+12.5%",
+      trending: "up",
+      icon: Calendar,
+      color: "emerald",
+    },
+    {
+      name: "Active Players",
+      value: playersData?.total.toString() || "0",
+      change: "+3.2%",
+      trending: "up",
+      icon: Users,
+      color: "blue",
+    },
+    {
+      name: "Verified Records",
+      value: "89%",
+      change: "+5.4%",
+      trending: "up",
+      icon: ShieldCheck,
+      color: "indigo",
+    },
+    {
+      name: "Pending Tasks",
+      value: logsData?.total.toString() || "0",
+      change: "-4.1%",
+      trending: "down",
+      icon: AlertCircle,
+      color: "rose",
+    },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
@@ -104,34 +129,48 @@ export default function Home() {
             <h2 className="font-bold text-slate-900 underline decoration-emerald-500 decoration-2 underline-offset-4">
               Recent Ingestions
             </h2>
-            <button className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors">
+            <Link
+              href="/system-logs"
+              className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+            >
               View All
-            </button>
+            </Link>
           </div>
           <div className="divide-y divide-slate-50">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-xs">
-                    M{i}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-800 tracking-tight transition-colors group-hover:text-emerald-600">
-                      Match Ingested: Simba SC vs Yanga SC
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Source: ligikuu.co.tz • 2 mins ago
-                    </p>
-                  </div>
-                </div>
-                <div className="px-2.5 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-wider rounded-full ring-1 ring-amber-500/10">
-                  Pending Verify
-                </div>
+            {logsLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
               </div>
-            ))}
+            ) : logsData?.logs && logsData.logs.length > 0 ? (
+              logsData.logs.map((log) => (
+                <div
+                  key={log.id}
+                  className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-xs">
+                      {log.type[0]}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800 tracking-tight">
+                        {log.type} Ingested
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Source: {log.source} •{" "}
+                        {new Date(log.createdAt).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="px-2.5 py-1 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-wider rounded-full ring-1 ring-amber-500/10">
+                    {log.status}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="px-6 py-10 text-center text-slate-400 text-sm">
+                No pending ingestions
+              </div>
+            )}
           </div>
         </div>
 
@@ -171,7 +210,9 @@ export default function Home() {
                   <p className="text-sm font-semibold text-slate-700">
                     Verification Backlog
                   </p>
-                  <p className="text-xs text-slate-400">42 pending records</p>
+                  <p className="text-xs text-slate-400">
+                    {logsData?.total || 0} pending records
+                  </p>
                 </div>
                 <p className="text-sm font-bold text-amber-500">Normal</p>
               </div>
@@ -183,15 +224,19 @@ export default function Home() {
             <div className="pt-4 grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                 <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">
-                  Queue Size
+                  Total Matches
                 </p>
-                <p className="text-xl font-bold text-slate-800">142</p>
+                <p className="text-xl font-bold text-slate-800">
+                  {matchesData?.total || 0}
+                </p>
               </div>
               <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50">
                 <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1">
-                  API Latency
+                  Total Players
                 </p>
-                <p className="text-xl font-bold text-slate-800">42ms</p>
+                <p className="text-xl font-bold text-slate-800">
+                  {playersData?.total || 0}
+                </p>
               </div>
             </div>
           </div>
