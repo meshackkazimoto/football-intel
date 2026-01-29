@@ -16,6 +16,7 @@ import playerRoutes from "./rest/routes/players";
 import teamRoutes from "./rest/routes/teams";
 import countryRoutes from "./rest/routes/countries";
 import clubRoutes from "./rest/routes/clubs";
+import authRoutes from "./rest/routes/auth";
 
 dotenv.config();
 
@@ -65,6 +66,7 @@ app.route("/players", playerRoutes);
 app.route("/teams", teamRoutes);
 app.route("/countries", countryRoutes);
 app.route("/clubs", clubRoutes);
+app.route("/auth", authRoutes);
 
 // GraphQL
 app.use("/graphql", createRateLimiter(60, 60), async (c) => {

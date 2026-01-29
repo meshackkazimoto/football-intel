@@ -27,8 +27,17 @@ const navigation = [
 export function Sidebar() {
   const pathname = usePathname();
 
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:3000/auth/logout", { method: "POST" });
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
+
   return (
-    <div className="flex h-full w-64 flex-col bg-slate-900 text-white">
+    <div className="flex h-full w-64 flex-col bg-slate-900 text-white font-sans">
       <div className="flex h-16 items-center px-6">
         <Link
           href="/"
@@ -44,8 +53,8 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-        <p className="px-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-          Management
+        <p className="px-2 text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
+          Data Engine
         </p>
         {navigation.map((item) => {
           const isActive = pathname === item.href;
@@ -54,10 +63,10 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
+                "flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-200 group relative",
                 isActive
-                  ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white",
+                  ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-500/5"
+                  : "text-slate-400 hover:bg-slate-800/50 hover:text-white",
               )}
             >
               <item.icon
@@ -68,16 +77,22 @@ export function Sidebar() {
                     : "text-slate-500 group-hover:text-slate-300",
                 )}
               />
-              <span className="font-medium">{item.name}</span>
+              <span className="font-semibold tracking-tight">{item.name}</span>
+              {isActive && (
+                <div className="absolute right-2 w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              )}
             </Link>
           );
         })}
       </div>
 
-      <div className="p-4 border-t border-slate-800">
-        <button className="flex items-center gap-3 w-full px-3 py-2.5 text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-all">
-          <LogOut className="w-5 h-5" />
-          <span className="font-medium">Sign Out</span>
+      <div className="p-4 border-t border-slate-800/50">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 rounded-2xl transition-all group"
+        >
+          <LogOut className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+          <span className="font-bold tracking-tight">Sign Out</span>
         </button>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { Bell, Search, User } from "lucide-react";
 
 export function Header() {
   return (
-    <header className="h-16 border-b border-slate-200 bg-white px-8 flex items-center justify-between sticky top-0 z-10 transition-shadow duration-200">
+    <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-10 transition-shadow duration-200">
       <div className="flex items-center gap-4 flex-1">
         <div className="relative w-96 max-w-md group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-emerald-500 transition-colors" />
