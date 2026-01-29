@@ -15,6 +15,8 @@ import { eq } from "drizzle-orm";
 import { yoga } from "./graphql/server";
 import admin from "./rest/routes/admin";
 import { logger } from "@football-intel/logger";
+import metricsRoutes from "./rest/routes/metrics"
+import { requestId } from "./utils/tracing";
 
 dotenv.config();
 
@@ -24,6 +26,7 @@ logger.info("API starting...");
 const app = new Hono();
 
 app.route("/admin", admin);
+app.route("/metrics", metricsRoutes);
 
 /**
  * Health
