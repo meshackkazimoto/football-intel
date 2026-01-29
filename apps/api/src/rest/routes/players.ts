@@ -4,6 +4,7 @@ import {
   players,
   playerSeasonStats,
   playerContracts,
+  playerMatchRatings,
 } from "@football-intel/db/src/schema/core";
 import { eq, desc, and } from "drizzle-orm";
 import { createRateLimiter } from "../../middleware/rate-limit";
@@ -81,6 +82,29 @@ app.get("/:id/stats", createRateLimiter(50, 60), async (c) => {
   });
 
   return c.json(stats);
+});
+
+/**
+ * GET /players/:id/ratings
+ * Match-by-match rating history
+ */
+app.get("/:id/ratings", createRateLimiter(50, 60), async (c) => {
+  const id = c.req.param("id");
+  const data = await db.query.playerMatchRatings.findMany({
+    where: eq(playerMatchRatings.playerId, id),
+    with: {
+      match: {
+        with: {
+          homeTeam: { with: { club: true } },
+          awayTeam: { with: { club: true } },
+        },
+      },
+    },
+    orderBy: [desc(playerMatchRatings.createdAt)],
+    limit: 10,
+  });
+
+  return c.json(data);
 });
 
 export default app;

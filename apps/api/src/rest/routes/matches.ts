@@ -5,6 +5,7 @@ import {
   matches,
   matchEvents,
   matchStats,
+  matchPredictions,
 } from "@football-intel/db/src/schema/core";
 import { eq, and, gte, lte, desc, asc, or, sql } from "drizzle-orm";
 import { createRateLimiter } from "../../middleware/rate-limit";
@@ -232,6 +233,22 @@ app.get("/h2h", createRateLimiter(50, 60), async (c) => {
   };
 
   return c.json(summary);
+});
+
+/**
+ * GET /matches/:id/prediction
+ */
+app.get("/:id/prediction", createRateLimiter(50, 60), async (c) => {
+  const id = c.req.param("id");
+  const prediction = await db.query.matchPredictions.findFirst({
+    where: eq(matchPredictions.matchId, id),
+  });
+
+  if (!prediction) {
+    return c.json({ error: "No prediction available for this match" }, 404);
+  }
+
+  return c.json(prediction);
 });
 
 /**

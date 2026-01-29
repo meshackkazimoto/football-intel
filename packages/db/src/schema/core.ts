@@ -258,6 +258,55 @@ export const transfers = pgTable("transfers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const matchPredictions = pgTable("match_predictions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  matchId: uuid("match_id")
+    .references(() => matches.id)
+    .notNull()
+    .unique(),
+  homeWinProb: integer("home_win_prob").notNull(), // percentage
+  drawProb: integer("draw_prob").notNull(),
+  awayWinProb: integer("away_win_prob").notNull(),
+  predictedHomeScore: integer("predicted_home_score"),
+  predictedAwayScore: integer("predicted_away_score"),
+  algorithm: varchar("algorithm", { length: 50 }).notNull(), // poisson | elo | ml
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const playerMatchRatings = pgTable(
+  "player_match_ratings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    playerId: uuid("player_id")
+      .references(() => players.id)
+      .notNull(),
+    matchId: uuid("match_id")
+      .references(() => matches.id)
+      .notNull(),
+    rating: integer("rating").notNull(), // e.g. 750 for 7.5
+    metadata: jsonb("metadata"), // reasoning for rating
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    uniquePlayerMatchRating: unique("unique_player_match_rating").on(
+      table.playerId,
+      table.matchId,
+    ),
+  }),
+);
+
+export const injuries = pgTable("injuries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  playerId: uuid("player_id")
+    .references(() => players.id)
+    .notNull(),
+  type: varchar("type", { length: 100 }).notNull(), // hamstring, ankle, etc.
+  severity: varchar("severity", { length: 50 }), // minor, moderate, severe
+  expectedReturn: date("expected_return"),
+  isResolved: boolean("is_resolved").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const leagueStandings = pgTable(
   "league_standings",
   {
@@ -346,6 +395,8 @@ export const playersRelations = relations(players, ({ one, many }) => ({
   stats: many(playerSeasonStats),
   events: many(matchEvents),
   transfers: many(transfers),
+  ratings: many(playerMatchRatings),
+  injuries: many(injuries),
 }));
 
 export const playerContractsRelations = relations(
@@ -380,6 +431,39 @@ export const matchesRelations = relations(matches, ({ one, many }) => ({
   events: many(matchEvents),
   lineups: many(matchLineups),
   stats: many(matchStats),
+  prediction: one(matchPredictions),
+  playerRatings: many(playerMatchRatings),
+}));
+
+export const matchPredictionsRelations = relations(
+  matchPredictions,
+  ({ one }) => ({
+    match: one(matches, {
+      fields: [matchPredictions.matchId],
+      references: [matches.id],
+    }),
+  }),
+);
+
+export const playerMatchRatingsRelations = relations(
+  playerMatchRatings,
+  ({ one }) => ({
+    player: one(players, {
+      fields: [playerMatchRatings.playerId],
+      references: [players.id],
+    }),
+    match: one(matches, {
+      fields: [playerMatchRatings.matchId],
+      references: [matches.id],
+    }),
+  }),
+);
+
+export const injuriesRelations = relations(injuries, ({ one }) => ({
+  player: one(players, {
+    fields: [injuries.playerId],
+    references: [players.id],
+  }),
 }));
 
 export const matchStatsRelations = relations(matchStats, ({ one }) => ({
