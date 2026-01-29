@@ -14,8 +14,12 @@ import {
 import { eq } from "drizzle-orm";
 import { yoga } from "./graphql/server";
 import admin from "./rest/routes/admin";
+import { logger } from "@football-intel/logger";
+
+dotenv.config();
 
 console.log("DB URL:", process.env.DATABASE_URL);
+logger.info("API starting...");
 
 const app = new Hono();
 

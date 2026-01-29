@@ -1,0 +1,16 @@
+{
+  "name": "@football-intel/logger",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "pino": "^10.3.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

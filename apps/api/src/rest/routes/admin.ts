@@ -8,6 +8,7 @@ import {
 } from "@football-intel/db/src/schema/ingestion";
 import { eq } from "drizzle-orm";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
+import { logger } from "@football-intel/logger";
 
 console.log("Admin routes module loading...");
 
@@ -83,6 +84,12 @@ app.post("/verify/:id", async (c) => {
   if (!ingestion) {
     return c.json({ error: "Ingestion not found" }, 404);
   }
+  
+  logger.info({
+    route: "verify",
+    ingestionId: id,
+    userId: c.get("user")?.id
+  });
 
   // 3. Dispatch queue job depending on type
   const payload = ingestion.rawPayload as {
