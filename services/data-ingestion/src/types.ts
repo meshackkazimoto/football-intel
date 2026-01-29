@@ -7,6 +7,13 @@ export interface ScrapedMatch {
 }
 
 export interface IngestionPayload {
-  type: "MATCH" | "TEAM" | "PLAYER" | "LEAGUE" | "CLUB";
+  type:
+    | "MATCH"
+    | "TEAM"
+    | "PLAYER"
+    | "LEAGUE"
+    | "CLUB"
+    | "MATCH_EVENT"
+    | "SEASON";
   payload: any;
 }

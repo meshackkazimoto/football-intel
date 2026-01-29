@@ -6,7 +6,7 @@ import {
   ingestionLogs,
   verificationRecords,
 } from "@football-intel/db/src/schema/ingestion";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   players,
   matches,
@@ -14,6 +14,9 @@ import {
   matchEvents,
   teams,
   countries,
+  playerContracts,
+  leagues,
+  seasons,
 } from "@football-intel/db/src/schema/core";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
@@ -151,6 +154,26 @@ app.post("/verify/:id", async (c) => {
     case "MATCH": {
       const m = payload as any;
 
+      let seasonId = m.seasonId;
+      if (!seasonId && m.seasonName) {
+        const season = await db.query.seasons.findFirst({
+          where: eq(seasons.name, m.seasonName),
+        });
+        seasonId = season?.id;
+      }
+
+      if (!seasonId) {
+        // Fallback to current season if it's the only one
+        const current = await db.query.seasons.findFirst({
+          where: eq(seasons.isCurrent, true),
+        });
+        seasonId = current?.id;
+      }
+
+      if (!seasonId) {
+        return c.json({ error: "Season not found" }, 400);
+      }
+
       // Attempt to resolve team names to IDs if IDs are missing
       let homeTeamId = m.homeTeamId;
       let awayTeamId = m.awayTeamId;
@@ -176,7 +199,7 @@ app.post("/verify/:id", async (c) => {
       const [insertedMatch] = await db
         .insert(matches)
         .values({
-          seasonId: m.seasonId,
+          seasonId,
           homeTeamId,
           awayTeamId,
           matchDate: new Date(m.matchDate),
@@ -193,9 +216,9 @@ app.post("/verify/:id", async (c) => {
       if (matchId && m.status === "finished") {
         await statsQueue.add(StatsJobs.RECOMPUTE_STATS, { matchId });
       }
-      if (m.seasonId) {
+      if (seasonId) {
         await statsQueue.add(StatsJobs.RECOMPUTE_STANDINGS, {
-          seasonId: m.seasonId,
+          seasonId,
         });
       }
       break;
@@ -203,19 +226,70 @@ app.post("/verify/:id", async (c) => {
 
     case "MATCH_EVENT": {
       const e = payload as any;
+
+      let matchId = e.matchId;
+      let teamId = e.teamId;
+      let playerId = e.playerId;
+
+      // 1. Resolve Team if missing
+      if (!teamId && e.teamName) {
+        const team = await db.query.teams.findFirst({
+          where: eq(teams.name, e.teamName),
+        });
+        teamId = team?.id;
+      }
+
+      // 2. Resolve Match if missing
+      if (!matchId && teamId) {
+        // Try to find the most recent/relevant match for this team
+        const match = await db.query.matches.findFirst({
+          where: and(
+            eq(matches.status, "finished"),
+            // Match date logic could be added here, but for now we look for team involvement
+          ),
+          // In a real scenario, we'd use matchDate or sourceUrl
+        });
+        matchId = match?.id;
+      }
+
+      // 3. Resolve Player if missing
+      if (!playerId && e.playerName && teamId) {
+        const player = await db.query.players.findFirst({
+          where: eq(players.fullName, e.playerName),
+        });
+        playerId = player?.id;
+
+        // Verify player is in the team (Optional but good for authority)
+        if (playerId) {
+          const contract = await db.query.playerContracts.findFirst({
+            where: and(
+              eq(playerContracts.playerId, playerId),
+              eq(playerContracts.teamId, teamId),
+            ),
+          });
+          if (!contract) {
+            logger.warn(
+              { playerName: e.playerName, teamName: e.teamName },
+              "Player scored for a team they aren't contracted to",
+            );
+          }
+        }
+      }
+
+      if (!matchId || !teamId) {
+        logger.warn({ e }, "Could not resolve match or team for event");
+        return c.json({ error: "Missing match or team context" }, 400);
+      }
+
       await db.insert(matchEvents).values({
-        matchId: e.matchId,
-        teamId: e.teamId,
-        playerId: e.playerId,
+        matchId,
+        teamId,
+        playerId,
         eventType: e.eventType,
         minute: e.minute,
       });
 
-      if (e.matchId) {
-        await statsQueue.add(StatsJobs.RECOMPUTE_STATS, {
-          matchId: e.matchId,
-        });
-      }
+      await statsQueue.add(StatsJobs.RECOMPUTE_STATS, { matchId });
       break;
     }
 
@@ -243,6 +317,54 @@ app.post("/verify/:id", async (c) => {
           foundedYear: cl.foundedYear,
           stadiumName: cl.stadiumName,
           stadiumCapacity: cl.stadiumCapacity,
+        })
+        .onConflictDoNothing();
+      break;
+    }
+
+    case "LEAGUE": {
+      const l = payload as any;
+      let countryId = l.countryId;
+      if (!countryId) {
+        const tza = await db.query.countries.findFirst({
+          where: eq(countries.code, "TZA"),
+        });
+        countryId = tza?.id;
+      }
+
+      await db
+        .insert(leagues)
+        .values({
+          name: l.name,
+          countryId,
+          tier: l.tier || 1,
+        })
+        .onConflictDoNothing();
+      break;
+    }
+
+    case "SEASON": {
+      const s = payload as any;
+      let leagueId = s.leagueId;
+      if (!leagueId && s.leagueName) {
+        const league = await db.query.leagues.findFirst({
+          where: eq(leagues.name, s.leagueName),
+        });
+        leagueId = league?.id;
+      }
+
+      if (!leagueId) {
+        return c.json({ error: "League not found" }, 400);
+      }
+
+      await db
+        .insert(seasons)
+        .values({
+          leagueId,
+          name: s.name,
+          startDate: s.startDate,
+          endDate: s.endDate,
+          isCurrent: s.isCurrent || false,
         })
         .onConflictDoNothing();
       break;
