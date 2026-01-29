@@ -13,6 +13,7 @@ import {
   clubs,
   matchEvents,
   teams,
+  countries,
 } from "@football-intel/db/src/schema/core";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
@@ -111,14 +112,26 @@ app.post("/verify/:id", async (c) => {
   switch (ingestion.type) {
     case "PLAYER": {
       const p = payload as any;
+
+      let nationalityId = p.nationalityId;
+      if (!nationalityId) {
+        const tza = await db.query.countries.findFirst({
+          where: eq(countries.code, "TZA"),
+        });
+        nationalityId = tza?.id;
+      }
+
       const [insertedPlayer] = await db
         .insert(players)
         .values({
-          firstName: p.firstName,
-          lastName: p.lastName,
+          firstName: p.firstName || p.fullName?.split(" ")[0] || "Unknown",
+          lastName:
+            p.lastName ||
+            p.fullName?.split(" ").slice(1).join(" ") ||
+            "Unknown",
           fullName: p.fullName,
           slug: p.slug,
-          nationalityId: p.nationalityId,
+          nationalityId,
           preferredFoot: p.preferredFoot,
           height: p.height,
         })
@@ -137,12 +150,35 @@ app.post("/verify/:id", async (c) => {
 
     case "MATCH": {
       const m = payload as any;
+
+      // Attempt to resolve team names to IDs if IDs are missing
+      let homeTeamId = m.homeTeamId;
+      let awayTeamId = m.awayTeamId;
+
+      if (!homeTeamId && m.homeTeamName) {
+        const team = await db.query.teams.findFirst({
+          where: eq(teams.name, m.homeTeamName),
+        });
+        homeTeamId = team?.id;
+      }
+      if (!awayTeamId && m.awayTeamName) {
+        const team = await db.query.teams.findFirst({
+          where: eq(teams.name, m.awayTeamName),
+        });
+        awayTeamId = team?.id;
+      }
+
+      if (!homeTeamId || !awayTeamId) {
+        logger.warn({ m }, "Could not resolve team IDs for match ingestion");
+        return c.json({ error: "Could not resolve team IDs" }, 400);
+      }
+
       const [insertedMatch] = await db
         .insert(matches)
         .values({
           seasonId: m.seasonId,
-          homeTeamId: m.homeTeamId,
-          awayTeamId: m.awayTeamId,
+          homeTeamId,
+          awayTeamId,
           matchDate: new Date(m.matchDate),
           status: m.status || "scheduled",
           venue: m.venue,
@@ -184,16 +220,29 @@ app.post("/verify/:id", async (c) => {
     }
 
     case "CLUB": {
-      const c = payload as any;
+      const cl = payload as any;
+
+      let countryId = cl.countryId;
+      if (!countryId) {
+        const tza = await db.query.countries.findFirst({
+          where: eq(countries.code, "TZA"),
+        });
+        countryId = tza?.id;
+      }
+
+      if (!countryId) {
+        return c.json({ error: "Country not found" }, 400);
+      }
+
       await db
         .insert(clubs)
         .values({
-          name: c.name,
-          slug: c.slug,
-          countryId: c.countryId,
-          foundedYear: c.foundedYear,
-          stadiumName: c.stadiumName,
-          stadiumCapacity: c.stadiumCapacity,
+          name: cl.name,
+          slug: cl.slug,
+          countryId,
+          foundedYear: cl.foundedYear,
+          stadiumName: cl.stadiumName,
+          stadiumCapacity: cl.stadiumCapacity,
         })
         .onConflictDoNothing();
       break;

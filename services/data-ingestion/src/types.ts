@@ -7,6 +7,6 @@ export interface ScrapedMatch {
 }
 
 export interface IngestionPayload {
-  type: "MATCH" | "TEAM" | "PLAYER" | "LEAGUE";
+  type: "MATCH" | "TEAM" | "PLAYER" | "LEAGUE" | "CLUB";
   payload: any;
 }
