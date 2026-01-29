@@ -202,6 +202,7 @@ export const matchStats = pgTable(
       table.matchId,
       table.teamId,
     ),
+    matchStatsIdx: index("match_stats_idx").on(table.matchId),
   }),
 );
 
@@ -236,6 +237,10 @@ export const playerSeasonStats = pgTable(
       table.seasonId,
       table.teamId,
     ),
+    playerSeasonIdx: index("player_season_idx").on(
+      table.playerId,
+      table.seasonId,
+    ),
   }),
 );
 
@@ -258,20 +263,26 @@ export const transfers = pgTable("transfers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const matchPredictions = pgTable("match_predictions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  matchId: uuid("match_id")
-    .references(() => matches.id)
-    .notNull()
-    .unique(),
-  homeWinProb: integer("home_win_prob").notNull(), // percentage
-  drawProb: integer("draw_prob").notNull(),
-  awayWinProb: integer("away_win_prob").notNull(),
-  predictedHomeScore: integer("predicted_home_score"),
-  predictedAwayScore: integer("predicted_away_score"),
-  algorithm: varchar("algorithm", { length: 50 }).notNull(), // poisson | elo | ml
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const matchPredictions = pgTable(
+  "match_predictions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    matchId: uuid("match_id")
+      .references(() => matches.id)
+      .notNull()
+      .unique(),
+    homeWinProb: integer("home_win_prob").notNull(), // percentage
+    drawProb: integer("draw_prob").notNull(),
+    awayWinProb: integer("away_win_prob").notNull(),
+    predictedHomeScore: integer("predicted_home_score"),
+    predictedAwayScore: integer("predicted_away_score"),
+    algorithm: varchar("algorithm", { length: 50 }).notNull(), // poisson | elo | ml
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    predictionMatchIdx: index("prediction_match_idx").on(table.matchId),
+  }),
+);
 
 export const playerMatchRatings = pgTable(
   "player_match_ratings",
@@ -292,6 +303,7 @@ export const playerMatchRatings = pgTable(
       table.playerId,
       table.matchId,
     ),
+    playerRatingIdx: index("player_rating_idx").on(table.playerId),
   }),
 );
 

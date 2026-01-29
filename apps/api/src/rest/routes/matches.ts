@@ -9,6 +9,11 @@ import {
 } from "@football-intel/db/src/schema/core";
 import { eq, and, gte, lte, desc, asc, or, sql } from "drizzle-orm";
 import { createRateLimiter } from "../../middleware/rate-limit";
+import { cacheMiddleware } from "../../middleware/cache";
+import {
+  paginationSchema,
+  getPaginationOffset,
+} from "@football-intel/validation";
 
 const app = new Hono();
 
@@ -16,9 +21,12 @@ const app = new Hono();
  * GET /matches
  * List all matches with optional filters
  */
-app.get("/", createRateLimiter(50, 60), async (c) => {
+app.get("/", createRateLimiter(50, 60), cacheMiddleware(30), async (c) => {
   const seasonId = c.req.query("seasonId");
   const status = c.req.query("status"); // scheduled | finished
+
+  const query = paginationSchema.parse(c.req.query());
+  const offset = getPaginationOffset(query.page, query.limit);
 
   const data = await db.query.matches.findMany({
     where: and(
@@ -30,9 +38,15 @@ app.get("/", createRateLimiter(50, 60), async (c) => {
       awayTeam: { with: { club: true } },
     },
     orderBy: [desc(matches.matchDate)],
+    limit: query.limit,
+    offset: offset,
   });
 
-  return c.json(data);
+  return c.json({
+    data,
+    page: query.page,
+    limit: query.limit,
+  });
 });
 
 /**

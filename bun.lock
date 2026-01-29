@@ -14,6 +14,7 @@
       "name": "@football-intel/api",
       "dependencies": {
         "@football-intel/api-schema": "workspace:*",
+        "@football-intel/cache": "workspace:*",
         "@football-intel/config": "workspace:*",
         "@football-intel/db": "workspace:*",
         "@football-intel/domain": "workspace:*",

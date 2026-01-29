@@ -18,6 +18,7 @@
     "@football-intel/search": "workspace:*",
     "@football-intel/validation": "workspace:*",
     "@football-intel/queue": "workspace:*",
+    "@football-intel/cache": "workspace:*",
     "@lucia-auth/adapter-drizzle": "^1.1.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
