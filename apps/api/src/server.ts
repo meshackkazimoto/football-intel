@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { yoga } from "./graphql/server";
 import { logger } from "@football-intel/logger";
 import { logger as honoLogger } from "hono/logger";
@@ -30,6 +31,17 @@ type Env = {
 
 const app = new Hono<Env>();
 
+// CORS Middleware - must be before other middleware
+app.use(
+  "*",
+  cors({
+    origin: ["http://localhost:3002", "http://localhost:3000"], // Admin and Web
+    credentials: true,
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+  }),
+);
+
 // Middleware
 app.use("*", async (c, next) => {
   c.set("requestId", requestId());
@@ -56,7 +68,7 @@ app.get("/health", createRateLimiter(100, 60), (c) => {
   return c.json({ status: "ok", service: "football-intel-api" });
 });
 
-// REST Routes
+// REST Routes with /api/v1 prefix
 const v1 = new Hono<Env>();
 
 v1.route("/admin", adminRoutes);
@@ -70,7 +82,7 @@ v1.route("/countries", countryRoutes);
 v1.route("/clubs", clubRoutes);
 v1.route("/auth", authRoutes);
 
-app.route("/v1", v1);
+app.route("/api/v1", v1);
 
 // GraphQL
 app.use("/graphql", createRateLimiter(60, 60), async (c) => {
