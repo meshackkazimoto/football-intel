@@ -17,6 +17,7 @@
         "@football-intel/config": "workspace:*",
         "@football-intel/db": "workspace:*",
         "@football-intel/domain": "workspace:*",
+        "@football-intel/validation": "workspace:*",
         "@lucia-auth/adapter-drizzle": "^1.1.0",
         "dotenv": "^17.2.3",
         "drizzle-orm": "^0.45.1",
@@ -63,6 +64,27 @@
         "@football-intel/db": "workspace:*",
         "dataloader": "^2.2.3",
         "drizzle-orm": "^0.45.1",
+      },
+    },
+    "packages/queue": {
+      "name": "queue",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
+    "packages/validation": {
+      "name": "@football-intel/validation",
+      "dependencies": {
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
       },
     },
     "scripts/seed": {
@@ -153,6 +175,8 @@
     "@football-intel/domain": ["@football-intel/domain@workspace:packages/domain"],
 
     "@football-intel/seed": ["@football-intel/seed@workspace:scripts/seed"],
+
+    "@football-intel/validation": ["@football-intel/validation@workspace:packages/validation"],
 
     "@graphql-tools/executor": ["@graphql-tools/executor@1.5.1", "", { "dependencies": { "@graphql-tools/utils": "^11.0.0", "@graphql-typed-document-node/core": "^3.2.0", "@repeaterjs/repeater": "^3.0.4", "@whatwg-node/disposablestack": "^0.0.6", "@whatwg-node/promise-helpers": "^1.0.0", "tslib": "^2.4.0" }, "peerDependencies": { "graphql": "^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0" } }, "sha512-n94Qcu875Mji9GQ52n5UbgOTxlgvFJicBPYD+FRks9HKIQpdNPjkkrKZUYNG51XKa+bf03rxNflm4+wXhoHHrA=="],
 
@@ -269,6 +293,8 @@
     "postgres-date": ["postgres-date@1.0.7", "", {}, "sha512-suDmjLVQg78nMK2UZ454hAG+OAW+HQPZ6n++TNDUX+L0+uUlLywnoxJKDou51Zm+zTCjrCl0Nq6J9C5hP9vK/Q=="],
 
     "postgres-interval": ["postgres-interval@1.2.0", "", { "dependencies": { "xtend": "^4.0.0" } }, "sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ=="],
+
+    "queue": ["queue@workspace:packages/queue"],
 
     "redis-errors": ["redis-errors@1.2.0", "", {}, "sha512-1qny3OExCf0UvUV/5wpYKf2YwPcOqXzkwKKSmKHiE6ZMQs5heeE/c8eXK+PNllPvmjgAbfnsbpkGZWy8cBpn9w=="],
 

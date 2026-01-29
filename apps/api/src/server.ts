@@ -13,10 +13,13 @@ import {
 } from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
 import { yoga } from "./graphql/server";
+import admin from "./rest/routes/admin";
 
 console.log("DB URL:", process.env.DATABASE_URL);
 
 const app = new Hono();
+
+app.route("/admin", admin);
 
 /**
  * Health
