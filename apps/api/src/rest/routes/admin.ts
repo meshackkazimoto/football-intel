@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { type User } from "lucia";
+import { type User, type Session } from "lucia";
+import { authMiddleware } from "../../middleware/auth";
 import { db } from "@football-intel/db/src/client";
 import {
   ingestionLogs,
@@ -8,11 +9,42 @@ import {
 import { eq } from "drizzle-orm";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 
+console.log("Admin routes module loading...");
+
 const app = new Hono<{
   Variables: {
-    user: User;
+    user: User | null;
+    session: Session | null;
   };
 }>();
+
+app.use("*", authMiddleware);
+
+app.use("*", async (c, next) => {
+  console.log(`Admin request: ${c.req.method} ${c.req.path}`);
+
+  // Development bypass for testing
+  if (
+    process.env.NODE_ENV === "development" &&
+    c.req.header("X-Admin-Test-Mode") === "true"
+  ) {
+    c.set("user", {
+      id: "dev-admin-id",
+      email: "dev@football-intel.com",
+      role: "ADMIN",
+    } as any);
+    return next();
+  }
+
+  const user = c.get("user");
+  if (!user) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  if (user.role !== "ADMIN") {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+  return next();
+});
 
 app.post("/ingest", async (c) => {
   const body = await c.req.json();
@@ -36,7 +68,7 @@ app.post("/verify/:id", async (c) => {
   // 1. Save verification record
   await db.insert(verificationRecords).values({
     ingestionId: id,
-    verifierUserId: c.get("user").id,
+    verifierUserId: c.get("user")!.id,
     confidenceScore: body.score,
     notes: body.notes,
   });

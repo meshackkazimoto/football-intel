@@ -15,6 +15,8 @@ new Worker(
         await recomputeStandings(job.data.seasonId);
         break;
     }
+    
+    console.log("JOB RECEIVED:", job.name, job.data);
   },
   { connection: redisConnection }
 );
