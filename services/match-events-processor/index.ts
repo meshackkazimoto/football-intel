@@ -1,6 +1,9 @@
 import { Worker } from "bullmq";
 import { redisConnection, StatsJobs } from "@football-intel/queue";
-import { recomputePlayerStats } from "@football-intel/domain";
+import {
+  recomputePlayerStats,
+  computeMatchStats,
+} from "@football-intel/domain";
 import { recomputeStandings } from "@football-intel/domain";
 import { indexPlayer } from "@football-intel/search";
 import { broadcastNotification } from "@football-intel/notifications";
@@ -11,6 +14,7 @@ new Worker(
     switch (job.name) {
       case StatsJobs.RECOMPUTE_STATS:
         await recomputePlayerStats(job.data.matchId);
+        await computeMatchStats(job.data.matchId);
         // Alert for goal events (simplified)
         await broadcastNotification("goal", { matchId: job.data.matchId });
         break;

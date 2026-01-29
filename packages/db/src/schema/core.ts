@@ -176,6 +176,35 @@ export const matchLineups = pgTable(
   }),
 );
 
+export const matchStats = pgTable(
+  "match_stats",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    matchId: uuid("match_id")
+      .references(() => matches.id)
+      .notNull(),
+    teamId: uuid("team_id")
+      .references(() => teams.id)
+      .notNull(),
+    possession: integer("possession"), // percentage
+    shotsOnTarget: integer("shots_on_target").default(0).notNull(),
+    shotsOffTarget: integer("shots_off_target").default(0).notNull(),
+    corners: integer("corners").default(0).notNull(),
+    fouls: integer("fouls").default(0).notNull(),
+    yellowCards: integer("yellow_cards").default(0).notNull(),
+    redCards: integer("red_cards").default(0).notNull(),
+    saves: integer("saves").default(0).notNull(),
+    passAccuracy: integer("pass_accuracy"), // percentage
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    uniqueMatchTeam: unique("unique_match_team").on(
+      table.matchId,
+      table.teamId,
+    ),
+  }),
+);
+
 export const playerSeasonStats = pgTable(
   "player_season_stats",
   {
@@ -192,7 +221,12 @@ export const playerSeasonStats = pgTable(
 
     appearances: integer("appearances").default(0).notNull(),
     goals: integer("goals").default(0).notNull(),
+    assists: integer("assists").default(0).notNull(),
     minutesPlayed: integer("minutes_played").default(0).notNull(),
+    yellowCards: integer("yellow_cards").default(0).notNull(),
+    redCards: integer("red_cards").default(0).notNull(),
+    shots: integer("shots").default(0).notNull(),
+    passAccuracy: integer("pass_accuracy").default(0).notNull(),
 
     lastComputedAt: timestamp("last_computed_at").defaultNow().notNull(),
   },
@@ -345,6 +379,18 @@ export const matchesRelations = relations(matches, ({ one, many }) => ({
   }),
   events: many(matchEvents),
   lineups: many(matchLineups),
+  stats: many(matchStats),
+}));
+
+export const matchStatsRelations = relations(matchStats, ({ one }) => ({
+  match: one(matches, {
+    fields: [matchStats.matchId],
+    references: [matches.id],
+  }),
+  team: one(teams, {
+    fields: [matchStats.teamId],
+    references: [teams.id],
+  }),
 }));
 
 export const matchEventsRelations = relations(matchEvents, ({ one }) => ({

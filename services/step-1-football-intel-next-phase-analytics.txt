@@ -1,0 +1,146 @@
+
+FOOTBALL-INTEL — NEXT BACKEND PHASE: ANALYTICS & INTELLIGENCE DEPTH
+=====================================================================
+
+CURRENT PRODUCT STATE
+---------------------
+The backend has reached high maturity with the following core football
+features already implemented:
+
+- Match results
+- Fixtures system
+- Live match streaming (SSE)
+- Player intelligence profiles
+- Club intelligence profiles
+- Squads & lineups
+- Transfers tracking
+- Real-time standings computation
+- Background workers for recomputation
+- Notification system
+- Advanced search with filters
+
+At this stage, the platform has strong feature breadth. The next step
+is not additional CRUD endpoints, but deeper football intelligence.
+
+=====================================================================
+NEXT STEP — ADVANCED MATCH STATISTICS & ANALYTICS
+=====================================================================
+
+This phase focuses on intelligence depth rather than new entity creation.
+The goal is to transform the platform from a football data system into
+a football intelligence system.
+
+---------------------------------------------------------------------
+1. MATCH STATISTICS ENGINE
+---------------------------------------------------------------------
+Per Match Analytics:
+- Possession percentage
+- Shots on target
+- Shots off target
+- Corners
+- Fouls
+- Yellow cards summary
+- Red cards summary
+- Saves
+- Pass accuracy
+- Expected Goals (xG) — optional later
+
+These statistics are derived from match events and computed metrics.
+
+---------------------------------------------------------------------
+2. TEAM ANALYTICS ENDPOINTS
+---------------------------------------------------------------------
+Endpoint Example:
+GET /teams/:id/stats?season=...
+
+Return Metrics:
+- Goals scored
+- Goals conceded
+- Clean sheets
+- Average goals per match
+- Win/Draw/Loss ratio
+- Home vs Away performance
+- Form (last 5 matches)
+
+Purpose:
+Provides performance insights for clubs and analysts.
+
+---------------------------------------------------------------------
+3. PLAYER ANALYTICS ENDPOINTS
+---------------------------------------------------------------------
+Endpoint Example:
+GET /players/:id/stats?season=...
+
+Return Metrics:
+- Goals
+- Assists
+- Minutes played
+- Yellow/Red cards
+- Shots
+- Pass accuracy
+- Heatmap data (future enhancement)
+
+Purpose:
+Transforms player profiles into analytical performance dashboards.
+
+---------------------------------------------------------------------
+4. FORM & MOMENTUM ENGINE
+---------------------------------------------------------------------
+For both clubs and players:
+- Last 5 matches
+- Win/Draw/Loss streaks
+- Momentum score
+- Performance trends
+
+Purpose:
+Improves user perception and engagement by showing recent performance
+rather than static totals.
+
+---------------------------------------------------------------------
+5. HEAD‑TO‑HEAD (H2H) INTELLIGENCE
+---------------------------------------------------------------------
+Endpoint Example:
+GET /matches/h2h?teamA=...&teamB=...
+
+Return Data:
+- Last 10 encounters
+- Win ratios
+- Goals scored vs conceded
+- Historical trends
+
+Purpose:
+Highly demanded feature for fans, analysts, and media coverage.
+
+=====================================================================
+REMAINING FEATURE PHASES
+=====================================================================
+
+PHASE A — ANALYTICS DEPTH (CURRENT TARGET)
+- Match statistics
+- Team analytics
+- Player analytics
+- Form engine
+- Head‑to‑Head intelligence
+
+PHASE B — PREDICTIVE / AI INTELLIGENCE (FUTURE)
+- Match predictions
+- Player ratings
+- Injury impact analysis
+- Probability and outcome models
+
+PHASE C — POLISH & OPTIMIZATION
+- Advanced caching
+- Pagination tuning
+- Data validation rules
+- Performance optimization
+
+=====================================================================
+SUMMARY
+=====================================================================
+
+The backend has achieved feature coverage. The next evolution is
+intelligence depth. This phase focuses on analytical insight rather
+than additional entities or endpoints.
+
+Completion of Phase A will position the platform as a true
+FOOTBALL INTELLIGENCE SYSTEM rather than a standard football API.

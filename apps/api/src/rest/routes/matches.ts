@@ -1,8 +1,12 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { db } from "@football-intel/db/src/client";
-import { matches, matchEvents } from "@football-intel/db/src/schema/core";
-import { eq, and, gte, lte, desc, asc } from "drizzle-orm";
+import {
+  matches,
+  matchEvents,
+  matchStats,
+} from "@football-intel/db/src/schema/core";
+import { eq, and, gte, lte, desc, asc, or, sql } from "drizzle-orm";
 import { createRateLimiter } from "../../middleware/rate-limit";
 
 const app = new Hono();
@@ -158,6 +162,76 @@ app.get("/:id/result", createRateLimiter(100, 60), async (c) => {
   };
 
   return c.json(response);
+});
+
+/**
+ * GET /matches/:id/stats
+ */
+app.get("/:id/stats", createRateLimiter(50, 60), async (c) => {
+  const id = c.req.param("id");
+
+  const stats = await db.query.matchStats.findMany({
+    where: eq(matchStats.matchId, id),
+    with: {
+      team: { with: { club: true } },
+    },
+  });
+
+  return c.json(stats);
+});
+
+/**
+ * GET /matches/h2h
+ * Head-to-head history between two teams/clubs
+ */
+app.get("/h2h", createRateLimiter(50, 60), async (c) => {
+  const clubA = c.req.query("clubA");
+  const clubB = c.req.query("clubB");
+
+  if (!clubA || !clubB) {
+    return c.json({ error: "clubA and clubB are required" }, 400);
+  }
+
+  // Find all matches between these two clubs
+  // First get team IDs for these clubs across all seasons?
+  // Or just use clubId logic if teams are linked to clubs.
+  // Actually, matches table uses teamId. We need to find teams belonging to these clubs.
+
+  const h2hMatches = await db.query.matches.findMany({
+    where: sql`
+      (home_team_id IN (SELECT id FROM teams WHERE club_id = ${clubA}) AND away_team_id IN (SELECT id FROM teams WHERE club_id = ${clubB}))
+      OR
+      (home_team_id IN (SELECT id FROM teams WHERE club_id = ${clubB}) AND away_team_id IN (SELECT id FROM teams WHERE club_id = ${clubA}))
+    `,
+    with: {
+      homeTeam: { with: { club: true } },
+      awayTeam: { with: { club: true } },
+    },
+    orderBy: [desc(matches.matchDate)],
+    limit: 10,
+  });
+
+  const summary = {
+    total: h2hMatches.length,
+    winsA: h2hMatches.filter((m) => {
+      const isHomeA = m.homeTeam.club.id === clubA;
+      return (
+        (isHomeA && m.homeScore! > m.awayScore!) ||
+        (!isHomeA && m.awayScore! > m.homeScore!)
+      );
+    }).length,
+    winsB: h2hMatches.filter((m) => {
+      const isHomeB = m.homeTeam.club.id === clubB;
+      return (
+        (isHomeB && m.homeScore! > m.awayScore!) ||
+        (!isHomeB && m.awayScore! > m.homeScore!)
+      );
+    }).length,
+    draws: h2hMatches.filter((m) => m.homeScore === m.awayScore).length,
+    matches: h2hMatches,
+  };
+
+  return c.json(summary);
 });
 
 /**
