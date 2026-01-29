@@ -64,6 +64,13 @@
       "when": 1769693556292,
       "tag": "0008_legal_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1769715368352,
+      "tag": "0009_violet_boomer",
+      "breakpoints": true
     }
   ]
 }
