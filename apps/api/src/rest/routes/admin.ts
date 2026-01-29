@@ -7,6 +7,13 @@ import {
   verificationRecords,
 } from "@football-intel/db/src/schema/ingestion";
 import { eq } from "drizzle-orm";
+import {
+  players,
+  matches,
+  clubs,
+  matchEvents,
+  teams,
+} from "@football-intel/db/src/schema/core";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
 import { createRateLimiter } from "src/middleware/rate-limit";
@@ -102,29 +109,95 @@ app.post("/verify/:id", async (c) => {
   };
 
   switch (ingestion.type) {
-    case "MATCH_EVENT":
-      if (payload.matchId) {
-        await statsQueue.add(StatsJobs.RECOMPUTE_STATS, {
-          matchId: payload.matchId,
-        });
-      }
-      break;
+    case "PLAYER": {
+      const p = payload as any;
+      const [insertedPlayer] = await db
+        .insert(players)
+        .values({
+          firstName: p.firstName,
+          lastName: p.lastName,
+          fullName: p.fullName,
+          slug: p.slug,
+          nationalityId: p.nationalityId,
+          preferredFoot: p.preferredFoot,
+          height: p.height,
+        })
+        .onConflictDoNothing()
+        .returning();
 
-    case "MATCH":
-      if (payload.seasonId) {
-        await statsQueue.add(StatsJobs.RECOMPUTE_STANDINGS, {
-          seasonId: payload.seasonId,
-        });
-      }
-      break;
+      const playerId = insertedPlayer?.id || p.id;
 
-    case "PLAYER":
       await statsQueue.add(StatsJobs.INDEX_PLAYER, {
-        id: payload.id,
-        fullName: payload.fullName,
-        clubName: payload.clubName,
+        id: playerId,
+        fullName: p.fullName,
+        clubName: p.clubName,
       });
       break;
+    }
+
+    case "MATCH": {
+      const m = payload as any;
+      const [insertedMatch] = await db
+        .insert(matches)
+        .values({
+          seasonId: m.seasonId,
+          homeTeamId: m.homeTeamId,
+          awayTeamId: m.awayTeamId,
+          matchDate: new Date(m.matchDate),
+          status: m.status || "scheduled",
+          venue: m.venue,
+          homeScore: m.homeScore,
+          awayScore: m.awayScore,
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      const matchId = insertedMatch?.id || m.id;
+
+      if (matchId && m.status === "finished") {
+        await statsQueue.add(StatsJobs.RECOMPUTE_STATS, { matchId });
+      }
+      if (m.seasonId) {
+        await statsQueue.add(StatsJobs.RECOMPUTE_STANDINGS, {
+          seasonId: m.seasonId,
+        });
+      }
+      break;
+    }
+
+    case "MATCH_EVENT": {
+      const e = payload as any;
+      await db.insert(matchEvents).values({
+        matchId: e.matchId,
+        teamId: e.teamId,
+        playerId: e.playerId,
+        eventType: e.eventType,
+        minute: e.minute,
+      });
+
+      if (e.matchId) {
+        await statsQueue.add(StatsJobs.RECOMPUTE_STATS, {
+          matchId: e.matchId,
+        });
+      }
+      break;
+    }
+
+    case "CLUB": {
+      const c = payload as any;
+      await db
+        .insert(clubs)
+        .values({
+          name: c.name,
+          slug: c.slug,
+          countryId: c.countryId,
+          foundedYear: c.foundedYear,
+          stadiumName: c.stadiumName,
+          stadiumCapacity: c.stadiumCapacity,
+        })
+        .onConflictDoNothing();
+      break;
+    }
   }
 
   return c.json({ ok: true });

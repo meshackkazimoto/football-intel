@@ -33,12 +33,7 @@ export async function generateMatchPrediction(matchId: string) {
     ),
   });
 
-  if (
-    !homeStats ||
-    !awayStats ||
-    homeStats.played === 0 ||
-    awayStats.played === 0
-  ) {
+  if (!homeStats ||!awayStats ||homeStats.played === 0 ||awayStats.played === 0) {
     // Default to 40%/30%/30% if no data
     await db
       .insert(matchPredictions)
@@ -57,12 +52,8 @@ export async function generateMatchPrediction(matchId: string) {
   // Simplified Poisson Logic
   // lambda_home = home_attack_strength * away_defense_weakness * league_avg_home_goals
   // For simplicity: (home_goals_scored / played) * (away_goals_conceded / played)
-  const homeLambda =
-    (homeStats.goalsFor / homeStats.played) *
-    (awayStats.goalsAgainst / awayStats.played);
-  const awayLambda =
-    (awayStats.goalsFor / awayStats.played) *
-    (homeStats.goalsAgainst / homeStats.played);
+  const homeLambda = (homeStats.goalsFor / homeStats.played) * (awayStats.goalsAgainst / awayStats.played);
+  const awayLambda = (awayStats.goalsFor / awayStats.played) * (homeStats.goalsAgainst / homeStats.played);
 
   // Convert lambdas to probabilities (simplified approximation)
   const total = homeLambda + awayLambda + 1; // +1 to account for draw weight
