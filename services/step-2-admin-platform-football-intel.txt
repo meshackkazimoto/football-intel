@@ -1,0 +1,186 @@
+ADMIN / MODERATOR PLATFORM — FOOTBALL‑INTEL
+=====================================
+
+QUESTION
+--------
+Where will admins or moderators actually work to perform data tasks?
+
+ANSWER OVERVIEW
+---------------
+Admins and moderators should not use curl commands or Postman in production.
+They need a private internal web interface called an Admin Dashboard
+(or Back‑Office Panel).
+
+This is not public and not a marketing website.
+It is a functional control room for managing football data.
+
+------------------------------------------------------------
+WHAT IS THE ADMIN DASHBOARD?
+------------------------------------------------------------
+
+A private web application used only by:
+- Project owner
+- Moderators
+- Editors
+- Trusted contributors
+- Journalists (future)
+- Club officials (future)
+
+It is NOT the public platform.
+It is the internal data management interface.
+
+------------------------------------------------------------
+WHERE IT FITS IN THE PROJECT STRUCTURE
+------------------------------------------------------------
+
+apps/
+  api/
+  admin/   ← Internal Control Panel
+  web/
+  mobile/
+
+The folder `apps/admin` becomes the operational interface.
+
+------------------------------------------------------------
+WHAT ADMINS DO INSIDE THE DASHBOARD
+------------------------------------------------------------
+
+1. MATCH MANAGEMENT
+- Add fixtures
+- Enter results
+- Edit scores
+- Add lineups
+- Add match events (goals, cards, substitutions)
+
+2. PLAYER MANAGEMENT
+- Create players
+- Edit player profiles
+- Update transfers
+- Injury status
+
+3. CLUB MANAGEMENT
+- Squad lists
+- Stadium information
+- Manager updates
+
+4. VERIFICATION PANEL
+- View ingestion logs
+- Approve or reject submissions
+- Assign confidence scores
+
+5. STANDINGS & STATISTICS TOOLS
+- Recompute standings
+- Trigger recalculations
+- Correct data inconsistencies
+
+------------------------------------------------------------
+IMPORTANT DESIGN PRINCIPLE
+------------------------------------------------------------
+
+The Admin Panel does NOT need heavy UI or animations.
+
+You only need:
+- Forms
+- Tables
+- Filters
+- Buttons
+
+Think of it as:
+Google Sheets + CRUD + Verification Buttons
+
+------------------------------------------------------------
+TECH STACK SUGGESTIONS
+------------------------------------------------------------
+
+Keep it simple and fast:
+
+- React + Vite
+- Next.js
+- TanStack Table
+- Tailwind (optional)
+
+Avoid over‑engineering.
+
+------------------------------------------------------------
+AUTHENTICATION & ROLES
+------------------------------------------------------------
+
+Admins log in via:
+POST /auth/login
+
+Roles:
+- SUPER_ADMIN
+- EDITOR
+- MODERATOR
+- CONTRIBUTOR
+
+Your backend middleware already supports role‑based access.
+
+------------------------------------------------------------
+FIRST VERSION (MVP ADMIN PANEL)
+------------------------------------------------------------
+
+Only 5 core pages are required:
+
+1. Dashboard
+   - Today’s matches
+   - Pending verifications
+
+2. Matches
+   - List
+   - Add / Edit
+
+3. Players
+   - List
+   - Add / Edit
+
+4. Clubs
+   - List
+   - Add / Edit
+
+5. Ingestion Logs
+   - Verify / Reject
+
+This is enough to make the platform operational.
+
+------------------------------------------------------------
+WHY THIS IS CRITICAL
+------------------------------------------------------------
+
+Without an admin panel:
+- Data entry is slow
+- Only developers can update data
+- No delegation
+- No scalability
+
+With an admin panel:
+- Journalists can enter results
+- Clubs can submit lineups
+- Editors can verify data
+- The platform scales beyond one person
+
+------------------------------------------------------------
+MENTAL MODEL
+------------------------------------------------------------
+
+Public API  = Television broadcast  
+Admin Panel = Control room behind the television  
+
+Users watch.
+Admins operate.
+
+------------------------------------------------------------
+FINAL INSIGHT
+------------------------------------------------------------
+
+You already built:
+- Data engine
+- APIs
+- Verification pipeline
+- Workers
+
+The missing piece is simply:
+A private web interface to drive the system.
+
+Once apps/admin exists, the platform becomes fully operational,
+not just technically complete but usable by real people.

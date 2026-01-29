@@ -7,7 +7,7 @@ import type { ScrapedMatch } from "../types";
 export async function runLocalLeagueScraper() {
   try {
     logger.info("Fetching fixtures from local league source...");
-    const res = await axios.get("https://www.flashscore.com", {
+    const res = await axios.get("https://www.flashscoresss.com", {
       timeout: 10000, // 10s timeout
     });
 

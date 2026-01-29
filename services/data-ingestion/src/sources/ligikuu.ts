@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import { logger } from "@football-intel/logger";
 import { sendToIngestion } from "../utils/http";
 
-const BASE_URL = "https://ligikuu.co.tz";
+const BASE_URL = "https://ligikuuuuu.co.tz";
 
 export async function scrapeLigiKuuClubs() {
   try {
@@ -100,7 +100,7 @@ async function scrapeLigiKuuMatchDetails(url: string, matchSummary: any) {
     const $ = cheerio.load(res.data);
 
     // Look for goals in performance tables
-    // SportsPress often has one performance table per team
+    // SportsPesa often has one performance table per team
     $(".sp-template-event-performance").each((i, table) => {
       const teamName =
         i === 0 ? matchSummary.homeTeamName : matchSummary.awayTeamName;

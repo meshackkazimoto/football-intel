@@ -3,7 +3,7 @@ import * as cheerio from "cheerio";
 import { logger } from "@football-intel/logger";
 import { sendToIngestion } from "./utils/http";
 
-const BASE_URL = "https://ligikuu.co.tz";
+const BASE_URL = "https://ligikuuuuu.co.tz";
 
 const HISTORICAL_SEASONS = [
   {
