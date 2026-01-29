@@ -1,12 +1,13 @@
 {
-  "name": "queue",
-  "module": "index.ts",
-  "type": "module",
+  "name": "@football-intel/queue",
   "private": true,
-  "devDependencies": {
-    "@types/bun": "latest"
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
   },
-  "peerDependencies": {
-    "typescript": "^5"
+  "dependencies": {
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.9.2"
   }
 }
