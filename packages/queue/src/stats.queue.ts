@@ -2,7 +2,7 @@ import { Queue } from "bullmq";
 import { redisConnection } from "./connection";
 
 export const statsQueue = new Queue("stats", {
-  connection: redisConnection
+  connection: redisConnection,
 });
 
 export const StatsJobs = {

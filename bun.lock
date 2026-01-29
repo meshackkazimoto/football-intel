@@ -97,6 +97,7 @@
       "name": "match-events-processor",
       "devDependencies": {
         "@football-intel/domain": "workspace:*",
+        "@football-intel/queue": "workspace:*",
         "@types/bun": "latest",
         "bullmq": "^5.0.0",
       },

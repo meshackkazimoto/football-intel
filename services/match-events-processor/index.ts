@@ -1,15 +1,20 @@
 import { Worker } from "bullmq";
+import { redisConnection, StatsJobs } from "@football-intel/queue";
+import { recomputePlayerStats } from "@football-intel/domain";
+import { recomputeStandings } from "@football-intel/domain";
 
 new Worker(
   "stats",
   async (job) => {
-    if (job.name === "RECOMPUTE_STATS") {
-      await recomputePlayerStats(job.data.matchId);
-    }
+    switch (job.name) {
+      case StatsJobs.RECOMPUTE_STATS:
+        await recomputePlayerStats(job.data.matchId);
+        break;
 
-    if (job.name === "RECOMPUTE_STANDINGS") {
-      await recomputeStandings(job.data.seasonId);
+      case StatsJobs.RECOMPUTE_STANDINGS:
+        await recomputeStandings(job.data.seasonId);
+        break;
     }
   },
-  { connection: { host: "localhost", port: 6379 } }
+  { connection: redisConnection }
 );
