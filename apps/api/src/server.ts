@@ -3,7 +3,9 @@ import dotenv from "dotenv";
 import { Hono } from "hono";
 import { yoga } from "./graphql/server";
 import { logger } from "@football-intel/logger";
+import { logger as honoLogger } from "hono/logger";
 import { createRateLimiter } from "./middleware/rate-limit";
+import { requestId } from "./utils/tracing";
 
 import adminRoutes from "./rest/routes/admin";
 import metricsRoutes from "./rest/routes/metrics";
@@ -19,7 +21,34 @@ dotenv.config();
 
 logger.info("API starting...");
 
-const app = new Hono();
+type Env = {
+  Variables: {
+    requestId: string;
+  };
+};
+
+const app = new Hono<Env>();
+
+// Middleware
+app.use("*", async (c, next) => {
+  c.set("requestId", requestId());
+  await next();
+});
+
+app.use("*", honoLogger());
+
+// Error handling
+app.onError((err, c) => {
+  logger.error({ err, path: c.req.path }, "Unhandled error");
+  return c.json(
+    {
+      error: "Internal Server Error",
+      message: err.message,
+      requestId: c.get("requestId"),
+    },
+    500,
+  );
+});
 
 // Global health check
 app.get("/health", createRateLimiter(100, 60), (c) => {
