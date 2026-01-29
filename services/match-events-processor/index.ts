@@ -3,6 +3,7 @@ import { redisConnection, StatsJobs } from "@football-intel/queue";
 import { recomputePlayerStats } from "@football-intel/domain";
 import { recomputeStandings } from "@football-intel/domain";
 import { indexPlayer } from "@football-intel/search";
+import { broadcastNotification } from "@football-intel/notifications";
 
 new Worker(
   "stats",
@@ -10,10 +11,15 @@ new Worker(
     switch (job.name) {
       case StatsJobs.RECOMPUTE_STATS:
         await recomputePlayerStats(job.data.matchId);
+        // Alert for goal events (simplified)
+        await broadcastNotification("goal", { matchId: job.data.matchId });
         break;
 
       case StatsJobs.RECOMPUTE_STANDINGS:
         await recomputeStandings(job.data.seasonId);
+        await broadcastNotification("standings_change", {
+          seasonId: job.data.seasonId,
+        });
         break;
 
       case StatsJobs.INDEX_PLAYER:

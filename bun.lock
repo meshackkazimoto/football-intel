@@ -93,6 +93,18 @@
         "typescript": "^5",
       },
     },
+    "packages/notifications": {
+      "name": "@football-intel/notifications",
+      "dependencies": {
+        "@football-intel/logger": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "packages/queue": {
       "name": "@football-intel/queue",
       "dependencies": {
@@ -149,6 +161,7 @@
       "name": "match-events-processor",
       "dependencies": {
         "@football-intel/domain": "workspace:*",
+        "@football-intel/notifications": "workspace:*",
         "@football-intel/queue": "workspace:*",
         "@football-intel/search": "workspace:*",
         "bullmq": "^5.0.0",
@@ -245,6 +258,8 @@
     "@football-intel/logger": ["@football-intel/logger@workspace:packages/logger"],
 
     "@football-intel/metrics": ["@football-intel/metrics@workspace:packages/metrics"],
+
+    "@football-intel/notifications": ["@football-intel/notifications@workspace:packages/notifications"],
 
     "@football-intel/queue": ["@football-intel/queue@workspace:packages/queue"],
 

@@ -1,129 +1,43 @@
 import dotenv from "dotenv";
 
 import { Hono } from "hono";
-import { db } from "@football-intel/db/src/client";
-import {
-  countries,
-  leagues,
-  clubs,
-  teams,
-  players,
-  matches,
-  leagueStandings,
-} from "@football-intel/db/src/schema/core";
-import { eq } from "drizzle-orm";
 import { yoga } from "./graphql/server";
-import admin from "./rest/routes/admin";
 import { logger } from "@football-intel/logger";
-import metricsRoutes from "./rest/routes/metrics"
-import searchRoutes from "./rest/routes/search";
 import { createRateLimiter } from "./middleware/rate-limit";
+
+import adminRoutes from "./rest/routes/admin";
+import metricsRoutes from "./rest/routes/metrics";
+import searchRoutes from "./rest/routes/search";
+import matchRoutes from "./rest/routes/matches";
+import leagueRoutes from "./rest/routes/leagues";
+import playerRoutes from "./rest/routes/players";
+import teamRoutes from "./rest/routes/teams";
+import countryRoutes from "./rest/routes/countries";
+import clubRoutes from "./rest/routes/clubs";
 
 dotenv.config();
 
-console.log("DB URL:", process.env.DATABASE_URL);
 logger.info("API starting...");
 
 const app = new Hono();
 
-app.route("/admin", admin);
-app.route("/metrics", metricsRoutes);
-app.route("/search", searchRoutes);
-
-/**
- * Health
- */
+// Global health check
 app.get("/health", createRateLimiter(100, 60), (c) => {
   return c.json({ status: "ok", service: "football-intel-api" });
 });
 
-/**
- * Countries
- */
-app.get("/countries", createRateLimiter(100, 60), async (c) => {
-  const data = await db.query.countries.findMany();
-  return c.json(data);
-});
+// REST Routes
+app.route("/admin", adminRoutes);
+app.route("/metrics", metricsRoutes);
+app.route("/search", searchRoutes);
+app.route("/matches", matchRoutes);
+app.route("/leagues", leagueRoutes);
+app.route("/players", playerRoutes);
+app.route("/teams", teamRoutes);
+app.route("/countries", countryRoutes);
+app.route("/clubs", clubRoutes);
 
-/**
- * Leagues
- */
-app.get("/leagues", async (c) => {
-  const data = await db.query.leagues.findMany({
-    with: { country: true },
-  });
-  return c.json(data);
-});
-
-/**
- * Clubs
- */
-app.get("/clubs", async (c) => {
-  const data = await db.query.clubs.findMany({
-    with: { country: true },
-  });
-  return c.json(data);
-});
-
-/**
- * Teams (by season)
- */
-app.get("/teams", async (c) => {
-  const seasonId = c.req.query("seasonId");
-
-  const data = await db.query.teams.findMany({
-    where: seasonId ? eq(teams.seasonId, seasonId) : undefined,
-    with: {
-      club: true,
-      season: true,
-    },
-  });
-
-  return c.json(data);
-});
-
-/**
- * Players
- */
-app.get("/players", async (c) => {
-  const data = await db.query.players.findMany();
-  return c.json(data);
-});
-
-/**
- * Matches
- */
-app.get("/matches", async (c) => {
-  const data = await db.query.matches.findMany({
-    with: {
-      homeTeam: true,
-      awayTeam: true,
-    },
-    orderBy: (m, { desc }) => [desc(m.matchDate)],
-  });
-
-  return c.json(data);
-});
-
-/**
- * League standings
- */
-app.get("/standings", async (c) => {
-  const seasonId = c.req.query("seasonId");
-
-  const data = await db.query.leagueStandings.findMany({
-    where: seasonId ? eq(leagueStandings.seasonId, seasonId) : undefined,
-    with: {
-      team: {
-        with: { club: true },
-      },
-    },
-    orderBy: (s, { desc }) => [desc(s.points), desc(s.goalDifference)],
-  });
-
-  return c.json(data);
-});
-
+// GraphQL
 app.use("/graphql", createRateLimiter(60, 60), async (c) => {
   return yoga.fetch(c.req.raw, c);
 });

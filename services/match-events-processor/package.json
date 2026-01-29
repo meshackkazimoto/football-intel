@@ -7,6 +7,7 @@
     "@football-intel/domain": "workspace:*",
     "@football-intel/search": "workspace:*",
     "@football-intel/queue": "workspace:*",
+    "@football-intel/notifications": "workspace:*",
     "bullmq": "^5.0.0"
   },
   "devDependencies": {

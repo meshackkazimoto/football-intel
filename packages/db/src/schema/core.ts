@@ -10,14 +10,14 @@ import {
   jsonb,
   date,
   unique,
-  index
+  index,
 } from "drizzle-orm/pg-core";
 
 export const countries = pgTable("countries", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: varchar("name", { length: 100 }).notNull(),
   code: varchar("code", { length: 3 }).notNull().unique(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const leagues = pgTable("leagues", {
@@ -27,7 +27,7 @@ export const leagues = pgTable("leagues", {
     .notNull(),
   name: varchar("name", { length: 200 }).notNull(),
   tier: integer("tier").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const clubs = pgTable("clubs", {
@@ -45,7 +45,7 @@ export const clubs = pgTable("clubs", {
     colors?: { primary: string; secondary: string };
     nickname?: string;
   }>(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const seasons = pgTable("seasons", {
@@ -57,7 +57,7 @@ export const seasons = pgTable("seasons", {
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
   isCurrent: boolean("is_current").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const teams = pgTable(
@@ -71,14 +71,14 @@ export const teams = pgTable(
       .references(() => seasons.id)
       .notNull(),
     name: varchar("name", { length: 200 }).notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull()
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
     uniqueClubSeason: unique("unique_club_season").on(
       table.clubId,
-      table.seasonId
-    )
-  })
+      table.seasonId,
+    ),
+  }),
 );
 
 export const players = pgTable("players", {
@@ -91,7 +91,7 @@ export const players = pgTable("players", {
   nationalityId: uuid("nationality_id").references(() => countries.id),
   preferredFoot: varchar("preferred_foot", { length: 10 }), // left | right | both
   height: integer("height"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const playerContracts = pgTable("player_contracts", {
@@ -107,7 +107,7 @@ export const playerContracts = pgTable("player_contracts", {
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   isCurrent: boolean("is_current").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const matches = pgTable("matches", {
@@ -126,7 +126,7 @@ export const matches = pgTable("matches", {
   status: varchar("status", { length: 20 }).notNull(), // scheduled | finished
   homeScore: integer("home_score"),
   awayScore: integer("away_score"),
-  createdAt: timestamp("created_at").defaultNow().notNull()
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const matchEvents = pgTable(
@@ -142,11 +142,38 @@ export const matchEvents = pgTable(
     playerId: uuid("player_id").references(() => players.id),
     eventType: varchar("event_type", { length: 50 }).notNull(), // goal, yellow_card
     minute: integer("minute").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull()
+    createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
-    matchEventIdx: index("match_event_idx").on(table.matchId)
-  })
+    matchEventIdx: index("match_event_idx").on(table.matchId),
+  }),
+);
+
+export const matchLineups = pgTable(
+  "match_lineups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    matchId: uuid("match_id")
+      .references(() => matches.id)
+      .notNull(),
+    teamId: uuid("team_id")
+      .references(() => teams.id)
+      .notNull(),
+    playerId: uuid("player_id")
+      .references(() => players.id)
+      .notNull(),
+    position: varchar("position", { length: 50 }).notNull(),
+    isStarting: boolean("is_starting").default(true).notNull(),
+    jerseyNumber: integer("jersey_number"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    matchTeamPlayerIdx: unique("match_team_player_idx").on(
+      table.matchId,
+      table.teamId,
+      table.playerId,
+    ),
+  }),
 );
 
 export const playerSeasonStats = pgTable(
@@ -167,16 +194,35 @@ export const playerSeasonStats = pgTable(
     goals: integer("goals").default(0).notNull(),
     minutesPlayed: integer("minutes_played").default(0).notNull(),
 
-    lastComputedAt: timestamp("last_computed_at").defaultNow().notNull()
+    lastComputedAt: timestamp("last_computed_at").defaultNow().notNull(),
   },
   (table) => ({
     uniquePlayerSeasonTeam: unique("unique_player_season_team").on(
       table.playerId,
       table.seasonId,
-      table.teamId
-    )
-  })
+      table.teamId,
+    ),
+  }),
 );
+
+export const transfers = pgTable("transfers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  playerId: uuid("player_id")
+    .references(() => players.id)
+    .notNull(),
+  fromClubId: uuid("from_club_id").references(() => clubs.id),
+  toClubId: uuid("to_club_id")
+    .references(() => clubs.id)
+    .notNull(),
+  seasonId: uuid("season_id")
+    .references(() => seasons.id)
+    .notNull(),
+  transferDate: date("transfer_date").notNull(),
+  transferType: varchar("transfer_type", { length: 50 }).notNull(), // permanent | loan | free
+  fee: integer("fee"), // in cents/smallest unit
+  marketValue: integer("market_value"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 export const leagueStandings = pgTable(
   "league_standings",
@@ -198,14 +244,14 @@ export const leagueStandings = pgTable(
     goalDifference: integer("goal_difference").default(0).notNull(),
     points: integer("points").default(0).notNull(),
 
-    lastComputedAt: timestamp("last_computed_at").defaultNow().notNull()
+    lastComputedAt: timestamp("last_computed_at").defaultNow().notNull(),
   },
   (table) => ({
     uniqueSeasonTeam: unique("unique_season_team").on(
       table.seasonId,
-      table.teamId
-    )
-  })
+      table.teamId,
+    ),
+  }),
 );
 
 // relations
@@ -254,6 +300,7 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   awayMatches: many(matches, { relationName: "awayTeam" }),
   contracts: many(playerContracts),
   standings: many(leagueStandings),
+  lineups: many(matchLineups),
 }));
 
 export const playersRelations = relations(players, ({ one, many }) => ({
@@ -264,18 +311,22 @@ export const playersRelations = relations(players, ({ one, many }) => ({
   contracts: many(playerContracts),
   stats: many(playerSeasonStats),
   events: many(matchEvents),
+  transfers: many(transfers),
 }));
 
-export const playerContractsRelations = relations(playerContracts, ({ one }) => ({
-  player: one(players, {
-    fields: [playerContracts.playerId],
-    references: [players.id],
+export const playerContractsRelations = relations(
+  playerContracts,
+  ({ one }) => ({
+    player: one(players, {
+      fields: [playerContracts.playerId],
+      references: [players.id],
+    }),
+    team: one(teams, {
+      fields: [playerContracts.teamId],
+      references: [teams.id],
+    }),
   }),
-  team: one(teams, {
-    fields: [playerContracts.teamId],
-    references: [teams.id],
-  }),
-}));
+);
 
 export const matchesRelations = relations(matches, ({ one, many }) => ({
   season: one(seasons, {
@@ -293,6 +344,7 @@ export const matchesRelations = relations(matches, ({ one, many }) => ({
     relationName: "awayTeam",
   }),
   events: many(matchEvents),
+  lineups: many(matchLineups),
 }));
 
 export const matchEventsRelations = relations(matchEvents, ({ one }) => ({
@@ -310,28 +362,68 @@ export const matchEventsRelations = relations(matchEvents, ({ one }) => ({
   }),
 }));
 
-export const leagueStandingsRelations = relations(leagueStandings, ({ one }) => ({
-  season: one(seasons, {
-    fields: [leagueStandings.seasonId],
-    references: [seasons.id],
+export const matchLineupsRelations = relations(matchLineups, ({ one }) => ({
+  match: one(matches, {
+    fields: [matchLineups.matchId],
+    references: [matches.id],
   }),
   team: one(teams, {
-    fields: [leagueStandings.teamId],
+    fields: [matchLineups.teamId],
     references: [teams.id],
+  }),
+  player: one(players, {
+    fields: [matchLineups.playerId],
+    references: [players.id],
   }),
 }));
 
-export const playerSeasonStatsRelations = relations(playerSeasonStats, ({ one }) => ({
+export const leagueStandingsRelations = relations(
+  leagueStandings,
+  ({ one }) => ({
+    season: one(seasons, {
+      fields: [leagueStandings.seasonId],
+      references: [seasons.id],
+    }),
+    team: one(teams, {
+      fields: [leagueStandings.teamId],
+      references: [teams.id],
+    }),
+  }),
+);
+
+export const playerSeasonStatsRelations = relations(
+  playerSeasonStats,
+  ({ one }) => ({
+    player: one(players, {
+      fields: [playerSeasonStats.playerId],
+      references: [players.id],
+    }),
+    season: one(seasons, {
+      fields: [playerSeasonStats.seasonId],
+      references: [seasons.id],
+    }),
+    team: one(teams, {
+      fields: [playerSeasonStats.teamId],
+      references: [teams.id],
+    }),
+  }),
+);
+
+export const transfersRelations = relations(transfers, ({ one }) => ({
   player: one(players, {
-    fields: [playerSeasonStats.playerId],
+    fields: [transfers.playerId],
     references: [players.id],
   }),
-  season: one(seasons, {
-    fields: [playerSeasonStats.seasonId],
-    references: [seasons.id],
+  fromClub: one(clubs, {
+    fields: [transfers.fromClubId],
+    references: [clubs.id],
   }),
-  team: one(teams, {
-    fields: [playerSeasonStats.teamId],
-    references: [teams.id],
+  toClub: one(clubs, {
+    fields: [transfers.toClubId],
+    references: [clubs.id],
+  }),
+  season: one(seasons, {
+    fields: [transfers.seasonId],
+    references: [seasons.id],
   }),
 }));
