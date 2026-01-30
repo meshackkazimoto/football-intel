@@ -1,97 +1,50 @@
-# Football Intel Mobile App
+# Welcome to your Expo app 👋
 
-Beautiful React Native mobile app for iOS and Android, providing real-time football intelligence for the NBC Premier League.
+This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
-## Features
+## Get started
 
-- 🏠 **Home Screen** - Today's matches at a glance
-- 📅 **Matches** - Browse all matches with filters
-- 👥 **Players** - Search and browse player profiles
-- 🏆 **Standings** - Real-time league table
-- ⚽ **Match Details** - Detailed match information with timeline
+1. Install dependencies
 
-## Getting Started
+   ```bash
+   npm install
+   ```
 
-### Prerequisites
+2. Start the app
 
-- Node.js 18+ or Bun
-- Expo CLI (`bunx expo-cli` or `npm install -g expo-cli`)
-- iOS Simulator (for Mac) or Android Emulator
-- Physical device with Expo Go app (optional)
+   ```bash
+   npx expo start
+   ```
 
-### Installation
+In the output, you'll find options to open the app in a
 
-1. Install dependencies:
-```bash
-bun install
-```
+- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
+- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
+- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
+- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-2. Start the development server:
-```bash
-bun dev
-```
+You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-3. Run on iOS:
-```bash
-bun ios
-```
+## Get a fresh project
 
-4. Run on Android:
-```bash
-bun android
-```
-
-## Configuration
-
-Set the API URL in your environment:
+When you're ready, run:
 
 ```bash
-EXPO_PUBLIC_API_URL=http://localhost:3001
+npm run reset-project
 ```
 
-Or create a `.env` file:
-```
-EXPO_PUBLIC_API_URL=http://your-api-url:3001
-```
+This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
 
-## Project Structure
+## Learn more
 
-```
-apps/mobile/
-├── app/                 # Expo Router pages
-│   ├── (tabs)/         # Tab navigation screens
-│   └── match/          # Match detail screen
-├── src/
-│   ├── services/       # API services
-│   ├── theme/          # Design system
-│   ├── providers/      # React providers
-│   └── utils/          # Utility functions
-└── assets/             # Images and icons
-```
+To learn more about developing your project with Expo, look at the following resources:
 
-## Design
+- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
+- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
 
-The app uses the same beautiful emerald color scheme as the admin platform:
-- Primary: `#10b981` (Emerald)
-- Background: `#f8fafc` (Slate 50)
-- Cards: White with subtle shadows
+## Join the community
 
-## Building for Production
+Join our community of developers creating universal apps.
 
-### iOS
-```bash
-bun run build:ios
-```
-
-### Android
-```bash
-bun run build:android
-```
-
-## Tech Stack
-
-- **Expo** - React Native framework
-- **Expo Router** - File-based routing
-- **React Query** - Data fetching and caching
-- **TypeScript** - Type safety
-- **Axios** - HTTP client
+- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
+- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.

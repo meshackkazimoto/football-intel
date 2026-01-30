@@ -1,29 +1,24 @@
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import { QueryProvider } from '@/providers/QueryProvider';
 import { StatusBar } from 'expo-status-bar';
+import 'react-native-reanimated';
+
+import { useColorScheme } from '@/hooks/use-color-scheme';
+
+export const unstable_settings = {
+  anchor: '(tabs)',
+};
 
 export default function RootLayout() {
+  const colorScheme = useColorScheme();
+
   return (
-    <QueryProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#f8fafc' },
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen 
-          name="match/[id]" 
-          options={{ 
-            presentation: 'modal',
-            headerShown: true,
-            title: 'Match Details',
-            headerStyle: { backgroundColor: '#10b981' },
-            headerTintColor: '#ffffff',
-          }} 
-        />
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
-    </QueryProvider>
+      <StatusBar style="auto" />
+    </ThemeProvider>
   );
 }
