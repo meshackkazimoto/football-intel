@@ -1,98 +1,204 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { useCallback } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  Pressable,
+  RefreshControl,
+  ActivityIndicator,
+} from 'react-native';
+import { Link } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { MatchCard } from '@/components/match-card';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { matchesService } from '@/services/matches/matches.service';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const primary = useThemeColor({}, 'primary');
+  const border = useThemeColor({}, 'border');
+  const { user, isAuthenticated } = useAuth();
+  const { themeMode, setThemeMode } = useTheme();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
+  const {
+    data: todayMatches = [],
+    isLoading: todayLoading,
+    refetch: refetchToday,
+    isRefetching: todayRefetching,
+  } = useQuery({
+    queryKey: ['matches', 'today'],
+    queryFn: () => matchesService.getToday(),
+  });
+
+  const {
+    data: upcomingMatches = [],
+    isLoading: upcomingLoading,
+    refetch: refetchUpcoming,
+    isRefetching: upcomingRefetching,
+  } = useQuery({
+    queryKey: ['matches', 'upcoming'],
+    queryFn: () => matchesService.getUpcoming(),
+  });
+
+  const onRefresh = useCallback(() => {
+    refetchToday();
+    refetchUpcoming();
+  }, [refetchToday, refetchUpcoming]);
+
+  const cycleTheme = useCallback(() => {
+    if (themeMode === 'light') setThemeMode('dark');
+    else if (themeMode === 'dark') setThemeMode('system');
+    else setThemeMode('light');
+  }, [themeMode, setThemeMode]);
+
+  const isLoading = todayLoading && upcomingLoading;
+  const isRefetching = todayRefetching || upcomingRefetching;
+
+  return (
+    <ThemedView style={styles.container}>
+      <View style={[styles.header, { borderBottomColor: border }]}>
+        <ThemedText type="title" style={styles.title}>
+          Football Intel
         </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <View style={styles.headerActions}>
+          <Pressable onPress={cycleTheme} style={styles.iconButton} hitSlop={12}>
+            <IconSymbol name="circle.lefthalf.filled" size={22} color={primary} />
+          </Pressable>
+          {isAuthenticated ? (
+            <View style={styles.userRow}>
+              <ThemedText style={styles.userEmail} numberOfLines={1}>
+                {user?.email}
+              </ThemedText>
+              <Link href="/modal" asChild>
+                <Pressable style={styles.iconButton} hitSlop={12}>
+                  <IconSymbol name="person.fill" size={22} color={primary} />
+                </Pressable>
+              </Link>
+            </View>
+          ) : (
+            <Link href="/modal" asChild>
+              <Pressable style={[styles.loginButton, { borderColor: primary }]}>
+                <ThemedText style={[styles.loginButtonText, { color: primary }]}>
+                  Login
+                </ThemedText>
+              </Pressable>
+            </Link>
+          )}
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching && !isLoading}
+            onRefresh={onRefresh}
+            tintColor={primary}
+          />
+        }
+      >
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={primary} />
+          </View>
+        ) : (
+          <>
+            <View style={styles.section}>
+              <ThemedText type="subtitle" style={styles.sectionTitle}>
+                Today
+              </ThemedText>
+              {todayMatches.length === 0 ? (
+                <ThemedText style={styles.empty}>No matches today</ThemedText>
+              ) : (
+                todayMatches.map((m) => <MatchCard key={m.id} match={m} />)
+              )}
+            </View>
+            <View style={styles.section}>
+              <ThemedText type="subtitle" style={styles.sectionTitle}>
+                Upcoming
+              </ThemedText>
+              {upcomingMatches.length === 0 ? (
+                <ThemedText style={styles.empty}>No upcoming matches</ThemedText>
+              ) : (
+                upcomingMatches.map((m) => <MatchCard key={m.id} match={m} />)
+              )}
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+  },
+  title: {
+    fontSize: 22,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconButton: {
+    padding: 4,
+  },
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  userEmail: {
+    fontSize: 13,
+    maxWidth: 120,
+    opacity: 0.9,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  loginButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  loginButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 32,
+  },
+  centered: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+  section: {
+    marginBottom: 28,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    marginBottom: 12,
+  },
+  empty: {
+    fontSize: 15,
+    opacity: 0.7,
   },
 });
