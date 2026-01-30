@@ -1,3 +1,4 @@
+import { logger } from "@football-intel/logger";
 import { apiClient } from "../api-client";
 import {
   Player,
@@ -12,6 +13,13 @@ export const playersService = {
     const { data } = await apiClient.get<PlayersResponse>("/players", {
       params: filters,
     });
+    
+    if (!data) {
+      logger.error("Players API returned undefined data");
+      throw new Error("Failed to fetch players: No data returned");
+    }
+    
+    logger.info(`Fetched ${data.players?.length || 0} players`);
     return data;
   },
 

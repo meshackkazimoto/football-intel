@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { playersService } from "@/services/players/players.service";
 import { Plus, Search, Edit, Trash2, Loader2, User } from "lucide-react";
@@ -10,17 +10,27 @@ import {
   createPlayerSchema,
   type CreatePlayerInput,
 } from "@/services/players/types";
+import { logger } from "@football-intel/logger";
 
 export default function PlayersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["players", searchQuery],
     queryFn: () =>
       playersService.getPlayers(searchQuery ? { search: searchQuery } : {}),
   });
+
+  useEffect(() => {
+    if (data) {
+      logger.info(`players: ${JSON.stringify(data)}`);
+    }
+    if (error) {
+      logger.error(`Failed to fetch players: ${error}`);
+    }
+  }, [data, error]);
 
   const {
     register,
@@ -206,6 +216,22 @@ export default function PlayersPage() {
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
         </div>
+      ) : error ? (
+        <div className="bg-white rounded-2xl border border-rose-200 shadow-sm p-6">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center">
+              <User className="w-8 h-8 text-rose-500" />
+            </div>
+            <div className="text-center">
+              <p className="text-rose-900 font-bold mb-1">
+                Failed to load players
+              </p>
+              <p className="text-sm text-rose-600">
+                {error instanceof Error ? error.message : "An error occurred"}
+              </p>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
@@ -233,8 +259,8 @@ export default function PlayersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {data?.players && data.players.length > 0 ? (
-                  data.players.map((player) => (
+                {data?.data && data.data.length > 0 ? (
+                  data.data.map((player) => (
                     <tr
                       key={player.id}
                       className="hover:bg-slate-50/50 transition-colors"
