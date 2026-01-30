@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import { theme } from '@/theme';
 
 function TabIcon({ name, color, size }: { name: string; color: string; size: number }) {
@@ -10,10 +10,18 @@ function TabIcon({ name, color, size }: { name: string; color: string; size: num
     trophy: '🏆',
   };
   
+  const icon = icons[name] || '•';
+  
   return (
-    <Text style={{ fontSize: size, color }}>{icons[name] || '•'}</Text>
+    <Text style={[styles.icon, { fontSize: size, color }]}>{icon}</Text>
   );
 }
+
+const styles = StyleSheet.create({
+  icon: {
+    textAlign: 'center',
+  },
+});
 
 export default function TabsLayout() {
   return (

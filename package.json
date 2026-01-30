@@ -8,6 +8,12 @@
     "services/*",
     "scripts/*"
   ],
+
+  "overrides": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.0"
+  },
+
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",

@@ -19,7 +19,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['matches', 'today'],
-    queryFn: () => matchesService.getTodayMatches(),
+    queryFn: async () => {
+      try {
+        return await matchesService.getTodayMatches();
+      } catch (err) {
+        console.error('Error fetching matches:', err);
+        throw err instanceof Error ? err : new Error('Failed to fetch matches');
+      }
+    },
     retry: 1,
   });
 
@@ -61,8 +68,14 @@ export default function HomeScreen() {
             <Text style={styles.emptyEmoji}>⚠️</Text>
             <Text style={styles.emptyTitle}>Error loading matches</Text>
             <Text style={styles.emptySubtitle}>
-              {error instanceof Error ? error.message : 'Something went wrong'}
+              {error instanceof Error ? error.message : String(error)}
             </Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => refetch()}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : matches.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -73,17 +86,11 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          matches.map((match) => (
+          matches.map((match: any) => (
             <MatchCard
               key={match.id}
               match={match}
-              onPress={() => {
-                try {
-                  router.push(`/match/${match.id}`);
-                } catch (error) {
-                  console.error('Navigation error:', error);
-                }
-              }}
+              onPress={() => router.push(`/match/${match.id}`)}
             />
           ))
         )}
@@ -224,6 +231,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text.secondary,
     textAlign: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  retryButton: {
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+  },
+  retryButtonText: {
+    color: theme.colors.white,
+    fontWeight: '600',
+    fontSize: 14,
   },
   matchCard: {
     backgroundColor: theme.colors.white,
