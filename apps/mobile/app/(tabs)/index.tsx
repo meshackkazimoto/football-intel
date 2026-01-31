@@ -7,7 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -17,11 +17,15 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { matchesService } from '@/services/matches/matches.service';
+import { Colors } from '@/constants/theme';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const primary = useThemeColor({}, 'primary');
   const border = useThemeColor({}, 'border');
-  const { user, isAuthenticated } = useAuth();
+  const background = useThemeColor({}, 'background');
+
+  const { isAuthenticated } = useAuth();
   const { themeMode, setThemeMode } = useTheme();
 
   const {
@@ -44,10 +48,20 @@ export default function HomeScreen() {
     queryFn: () => matchesService.getUpcoming(),
   });
 
+  const {
+    data: liveMatches = [],
+    refetch: refetchLive,
+  } = useQuery({
+    queryKey: ['matches', 'live'],
+    queryFn: () => matchesService.getLive(),
+    refetchInterval: 30000,
+  });
+
   const onRefresh = useCallback(() => {
     refetchToday();
     refetchUpcoming();
-  }, [refetchToday, refetchUpcoming]);
+    refetchLive();
+  }, [refetchToday, refetchUpcoming, refetchLive]);
 
   const cycleTheme = useCallback(() => {
     if (themeMode === 'light') setThemeMode('dark');
@@ -61,39 +75,36 @@ export default function HomeScreen() {
   return (
     <ThemedView style={styles.container}>
       <View style={[styles.header, { borderBottomColor: border }]}>
-        <ThemedText type="title" style={styles.title}>
-          Football Intel
-        </ThemedText>
+        <View>
+          <ThemedText type="title" style={styles.brand}>
+            Football Intel
+          </ThemedText>
+          <ThemedText style={styles.tagline}>
+            Tanzania football, live & local
+          </ThemedText>
+        </View>
+
         <View style={styles.headerActions}>
-          <Pressable onPress={cycleTheme} style={styles.iconButton} hitSlop={12}>
+          <Pressable onPress={() => router.push('/search')} hitSlop={12}>
+            <IconSymbol name="magnifyingglass" size={22} color={primary} />
+          </Pressable>
+
+          <Pressable onPress={cycleTheme} hitSlop={12}>
             <IconSymbol name="circle.lefthalf.filled" size={22} color={primary} />
           </Pressable>
-          {isAuthenticated ? (
-            <View style={styles.userRow}>
-              <ThemedText style={styles.userEmail} numberOfLines={1}>
-                {user?.email}
-              </ThemedText>
-              <Link href="/modal" asChild>
-                <Pressable style={styles.iconButton} hitSlop={12}>
-                  <IconSymbol name="person.fill" size={22} color={primary} />
-                </Pressable>
-              </Link>
-            </View>
-          ) : (
-            <Link href="/modal" asChild>
-              <Pressable style={[styles.loginButton, { borderColor: primary }]}>
-                <ThemedText style={[styles.loginButtonText, { color: primary }]}>
-                  Login
-                </ThemedText>
-              </Pressable>
-            </Link>
-          )}
+
+          <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
+            <IconSymbol
+              name={isAuthenticated ? 'person.fill' : 'person'}
+              size={22}
+              color={primary}
+            />
+          </Pressable>
         </View>
       </View>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching && !isLoading}
@@ -103,31 +114,86 @@ export default function HomeScreen() {
         }
       >
         {isLoading ? (
-          <View style={styles.centered}>
+          <View style={styles.loading}>
             <ActivityIndicator size="large" color={primary} />
           </View>
         ) : (
           <>
-            <View style={styles.section}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
-                Today
-              </ThemedText>
-              {todayMatches.length === 0 ? (
-                <ThemedText style={styles.empty}>No matches today</ThemedText>
-              ) : (
-                todayMatches.map((m) => <MatchCard key={m.id} match={m} />)
-              )}
+            {liveMatches.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.liveBadge}>
+                    <View style={styles.liveDot} />
+                    <ThemedText style={styles.liveTitle}>Live Now</ThemedText>
+                    <View style={styles.liveCount}>
+                      <ThemedText style={styles.liveCountText}>
+                        {liveMatches.length}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  {liveMatches.length > 3 && (
+                    <Pressable onPress={() => router.push('/(tabs)/live')} hitSlop={8}>
+                      <ThemedText style={[styles.seeAll, { color: primary }]}>
+                        See all
+                      </ThemedText>
+                    </Pressable>
+                  )}
+                </View>
+                <View style={styles.matchList}>
+                  {liveMatches.slice(0, 3).map((match) => (
+                    <MatchCard key={match.id} match={match} />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={styles.quickLinks}>
+              <QuickLink
+                icon="list.number"
+                label="Standings"
+                onPress={() => router.push('/(tabs)/standings')}
+                primary={primary}
+                border={border}
+                background={background}
+              />
+              <QuickLink
+                icon="calendar"
+                label="Fixtures"
+                onPress={() => router.push('/fixtures/nbc-premier')}
+                primary={primary}
+                border={border}
+                background={background}
+              />
+              <QuickLink
+                icon="shield.fill"
+                label="Teams"
+                onPress={() => router.push('/(tabs)/teams')}
+                primary={primary}
+                border={border}
+                background={background}
+              />
             </View>
-            <View style={styles.section}>
-              <ThemedText type="subtitle" style={styles.sectionTitle}>
-                Upcoming
-              </ThemedText>
-              {upcomingMatches.length === 0 ? (
-                <ThemedText style={styles.empty}>No upcoming matches</ThemedText>
-              ) : (
-                upcomingMatches.map((m) => <MatchCard key={m.id} match={m} />)
-              )}
-            </View>
+
+            {todayMatches.length > 0 ? (
+              <FeedSection
+                title="Today"
+                matches={todayMatches}
+                border={border}
+              />
+            ) : (
+              <View style={styles.emptySection}>
+                <ThemedText style={styles.emptySectionTitle}>Today</ThemedText>
+                <ThemedText style={styles.emptyText}>No matches scheduled today</ThemedText>
+              </View>
+            )}
+
+            {upcomingMatches.length > 0 && (
+              <FeedSection
+                title="Upcoming"
+                matches={upcomingMatches.slice(0, 5)}
+                border={border}
+              />
+            )}
           </>
         )}
       </ScrollView>
@@ -135,70 +201,175 @@ export default function HomeScreen() {
   );
 }
 
+function QuickLink({ icon, label, onPress, primary, border, background }: any) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.quickLink,
+        { borderColor: border, backgroundColor: background },
+        pressed && styles.quickLinkPressed,
+      ]}
+    >
+      <View style={[styles.quickLinkIcon, { backgroundColor: `${primary}15` }]}>
+        <IconSymbol name={icon} size={22} color={primary} />
+      </View>
+      <ThemedText style={styles.quickLinkLabel}>{label}</ThemedText>
+    </Pressable>
+  );
+}
+
+function FeedSection({
+  title,
+  matches,
+  border,
+}: {
+  title: string;
+  matches: any[];
+  border: string;
+}) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <ThemedText type="subtitle" style={styles.sectionTitle}>
+          {title}
+        </ThemedText>
+      </View>
+      <View style={styles.matchList}>
+        {matches.map((match) => (
+          <MatchCard key={match.id} match={match} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
     paddingTop: 56,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 18,
     borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
   },
-  title: {
+  brand: {
     fontSize: 22,
+    letterSpacing: -0.5,
+  },
+  tagline: {
+    fontSize: 13,
+    opacity: 0.65,
+    marginTop: 4,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 18,
   },
-  iconButton: {
-    padding: 4,
+
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    gap: 28,
   },
-  userRow: {
+
+  loading: {
+    paddingTop: 80,
+    alignItems: 'center',
+  },
+
+  quickLinks: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  quickLink: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  quickLinkPressed: {
+    opacity: 0.7,
+  },
+  quickLinkIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLinkLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  section: {
+    gap: 4,
+  },
+  sectionHeader: {
+    paddingBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+  },
+  liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  userEmail: {
-    fontSize: 13,
-    maxWidth: 120,
-    opacity: 0.9,
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#ef4444',
   },
-  loginButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
+  liveTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ef4444',
   },
-  loginButtonText: {
-    fontSize: 15,
+  liveCount: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: '#ef444415',
+  },
+  liveCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ef4444',
+  },
+  seeAll: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  scroll: {
-    flex: 1,
+
+  matchList: {
+    gap: 0,
   },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 32,
+
+  emptySection: {
+    gap: 8,
   },
-  centered: {
-    paddingVertical: 48,
-    alignItems: 'center',
-  },
-  section: {
-    marginBottom: 28,
-  },
-  sectionTitle: {
+  emptySectionTitle: {
     fontSize: 18,
-    marginBottom: 12,
+    fontWeight: '700',
   },
-  empty: {
+  emptyText: {
     fontSize: 15,
-    opacity: 0.7,
+    opacity: 0.6,
+    paddingVertical: 16,
   },
 });

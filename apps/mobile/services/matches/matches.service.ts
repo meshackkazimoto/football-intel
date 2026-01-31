@@ -2,6 +2,10 @@ import { api } from '../api';
 import type { Match, MatchesListResponse } from './types';
 
 export const matchesService = {
+  getLive: async (): Promise<Match[]> => {
+    const { data } = await api.get<Match[]>('/matches/today');
+    return data;
+  },
   getToday: async (): Promise<Match[]> => {
     const { data } = await api.get<Match[]>('/matches/today');
     return data;

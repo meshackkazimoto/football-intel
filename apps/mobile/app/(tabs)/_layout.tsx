@@ -15,6 +15,10 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.tabIconDefault,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: {
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        },
       }}
     >
       <Tabs.Screen
@@ -25,10 +29,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="live"
         options={{
-          title: 'Leagues',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="trophy.fill" color={color} />,
+          title: 'Live',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="dot.radiowaves.left.and.right" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="standings"
+        options={{
+          title: 'Standings',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="list.number" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="teams"
+        options={{
+          title: 'Teams',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="shield.fill" color={color} />,
         }}
       />
     </Tabs>
