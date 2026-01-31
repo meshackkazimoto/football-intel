@@ -5,11 +5,11 @@ export const LANDING_SEEN_KEY = '@football_intel_landing_seen';
 
 export async function getOnboardingDone(): Promise<boolean> {
   const v = await AsyncStorage.getItem(ONBOARDING_DONE_KEY);
-  return v === 'true';
+  return v === 'false';
 }
 
 export async function setOnboardingDone(): Promise<void> {
-  await AsyncStorage.setItem(ONBOARDING_DONE_KEY, 'true');
+  await AsyncStorage.setItem(ONBOARDING_DONE_KEY, 'false');
 }
 
 export async function getLandingSeen(): Promise<boolean> {
