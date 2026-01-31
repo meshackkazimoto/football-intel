@@ -17,10 +17,6 @@ import {
 
 const app = new Hono();
 
-/**
- * GET /matches
- * List all matches with optional filters
- */
 app.get("/", createRateLimiter(50, 60), cacheMiddleware(30), async (c) => {
   const seasonId = c.req.query("seasonId");
   const status = c.req.query("status"); // scheduled | finished
@@ -49,9 +45,6 @@ app.get("/", createRateLimiter(50, 60), cacheMiddleware(30), async (c) => {
   });
 });
 
-/**
- * GET /matches/today
- */
 app.get("/today", createRateLimiter(50, 60), async (c) => {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
@@ -74,10 +67,6 @@ app.get("/today", createRateLimiter(50, 60), async (c) => {
   return c.json(data);
 });
 
-/**
- * GET /matches/recent
- * Recently finished matches (last 7 days by default)
- */
 app.get("/recent", createRateLimiter(50, 60), async (c) => {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -98,10 +87,6 @@ app.get("/recent", createRateLimiter(50, 60), async (c) => {
   return c.json(data);
 });
 
-/**
- * GET /matches/upcoming
- * Upcoming fixtures (next 7 days)
- */
 app.get("/upcoming", createRateLimiter(50, 60), async (c) => {
   const now = new Date();
   const sevenDaysAhead = new Date();
@@ -124,10 +109,6 @@ app.get("/upcoming", createRateLimiter(50, 60), async (c) => {
   return c.json(data);
 });
 
-/**
- * GET /matches/:id/result
- * Detailed result including score breakdown and goal timeline
- */
 app.get("/:id/result", createRateLimiter(100, 60), async (c) => {
   const id = c.req.param("id");
 
@@ -179,9 +160,6 @@ app.get("/:id/result", createRateLimiter(100, 60), async (c) => {
   return c.json(response);
 });
 
-/**
- * GET /matches/:id/stats
- */
 app.get("/:id/stats", createRateLimiter(50, 60), async (c) => {
   const id = c.req.param("id");
 
@@ -195,10 +173,6 @@ app.get("/:id/stats", createRateLimiter(50, 60), async (c) => {
   return c.json(stats);
 });
 
-/**
- * GET /matches/h2h
- * Head-to-head history between two teams/clubs
- */
 app.get("/h2h", createRateLimiter(50, 60), async (c) => {
   const clubA = c.req.query("clubA");
   const clubB = c.req.query("clubB");
@@ -206,11 +180,6 @@ app.get("/h2h", createRateLimiter(50, 60), async (c) => {
   if (!clubA || !clubB) {
     return c.json({ error: "clubA and clubB are required" }, 400);
   }
-
-  // Find all matches between these two clubs
-  // First get team IDs for these clubs across all seasons?
-  // Or just use clubId logic if teams are linked to clubs.
-  // Actually, matches table uses teamId. We need to find teams belonging to these clubs.
 
   const h2hMatches = await db.query.matches.findMany({
     where: sql`
@@ -249,9 +218,6 @@ app.get("/h2h", createRateLimiter(50, 60), async (c) => {
   return c.json(summary);
 });
 
-/**
- * GET /matches/:id/prediction
- */
 app.get("/:id/prediction", createRateLimiter(50, 60), async (c) => {
   const id = c.req.param("id");
   const prediction = await db.query.matchPredictions.findFirst({
@@ -265,10 +231,6 @@ app.get("/:id/prediction", createRateLimiter(50, 60), async (c) => {
   return c.json(prediction);
 });
 
-/**
- * GET /matches/:id/live-stream
- * SSE endpoint for live match updates
- */
 app.get("/:id/live-stream", async (c) => {
   const id = c.req.param("id");
 
@@ -294,6 +256,134 @@ app.get("/:id/live-stream", async (c) => {
 
       await stream.sleep(5000); // Poll every 5 seconds for simulation
     }
+  });
+});
+
+app.get("/live", createRateLimiter(100, 60), async (c) => {
+  const leagueId = c.req.query("leagueId");
+  const seasonId = c.req.query("seasonId");
+
+  const data = await db.query.matches.findMany({
+    where: and(
+      eq(matches.status, "live"),
+      seasonId ? eq(matches.seasonId, seasonId) : undefined
+    ),
+    with: {
+      homeTeam: { with: { club: true } },
+      awayTeam: { with: { club: true } },
+      events: {
+        orderBy: [desc(matchEvents.createdAt)],
+        limit: 1,
+      },
+    },
+    orderBy: [asc(matches.matchDate)],
+  });
+
+  return c.json({
+    data: data.map((m) => ({
+      id: m.id,
+      status: m.status,
+      minute: m.currentMinute,
+      period: m.period,
+      matchDate: m.matchDate,
+      homeTeam: m.homeTeam,
+      awayTeam: m.awayTeam,
+      score: {
+        home: m.homeScore,
+        away: m.awayScore,
+      },
+      lastEvent: m.events[0]
+        ? {
+            minute: m.events[0].minute,
+            type: m.events[0].eventType,
+            teamId: m.events[0].teamId,
+          }
+        : null,
+    })),
+    count: data.length,
+  });
+});
+
+app.get("/:id/live", createRateLimiter(100, 60), async (c) => {
+  const id = c.req.param("id");
+
+  const match = await db.query.matches.findFirst({
+    where: eq(matches.id, id),
+    with: {
+      homeTeam: { with: { club: true } },
+      awayTeam: { with: { club: true } },
+      events: {
+        with: { player: true },
+        orderBy: [asc(matchEvents.minute)],
+      },
+      stats: {
+        with: { team: true },
+      },
+    },
+  });
+
+  if (!match) {
+    return c.json({ error: "Match not found" }, 404);
+  }
+
+  if (match.status !== "live" && match.status !== "half_time") {
+    return c.json(
+      { error: "Match is not live", status: match.status },
+      409
+    );
+  }
+
+  const lastEvent = match.events.at(-1) ?? null;
+
+  const stats = {
+    home: match.stats.find((s) => s.teamId === match.homeTeamId) ?? null,
+    away: match.stats.find((s) => s.teamId === match.awayTeamId) ?? null,
+  };
+
+  return c.json({
+    id: match.id,
+    status: match.status,
+    minute: match.currentMinute,
+    period: match.period,
+    matchDate: match.matchDate,
+    venue: match.venue,
+
+    score: {
+      home: match.homeScore,
+      away: match.awayScore,
+    },
+
+    teams: {
+      home: match.homeTeam,
+      away: match.awayTeam,
+    },
+
+    lastEvent: lastEvent
+      ? {
+          minute: lastEvent.minute,
+          type: lastEvent.eventType,
+          teamId: lastEvent.teamId,
+          player: lastEvent.player
+            ? {
+                id: lastEvent.player.id,
+                fullName: lastEvent.player.fullName,
+              }
+            : null,
+        }
+      : null,
+
+    timeline: match.events.map((e) => ({
+      minute: e.minute,
+      type: e.eventType,
+      teamId: e.teamId,
+    })),
+
+    stats: {
+      home: stats.home,
+      away: stats.away,
+    },
+
+    updatedAt: new Date().toISOString(),
   });
 });
 

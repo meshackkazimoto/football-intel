@@ -13,31 +13,27 @@ import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { leaguesService } from '@/services/leagues/leagues.service';
 
-type League = 'nbc-premier' | 'championship' | 'fa-cup';
-
-const LEAGUES = [
-  { id: 'nbc-premier', name: 'NBC Premier League' },
-  { id: 'championship', name: 'Championship' },
-  { id: 'fa-cup', name: 'FA Cup' },
-];
-
 export default function StandingsScreen() {
   const primary = useThemeColor({}, 'primary');
   const border = useThemeColor({}, 'border');
   const background = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
 
-  const [selectedLeague, setSelectedLeague] = useState<League>('nbc-premier');
+  // TODO: replace with selected season from UI
+  const [seasonId] = useState<string | null>(null);
 
   const {
-    data: standings = [],
+    data,
     isLoading,
     refetch,
     isRefetching,
   } = useQuery({
-    queryKey: ['standings', selectedLeague],
-    queryFn: () => leaguesService.getStandings(selectedLeague),
+    enabled: !!seasonId,
+    queryKey: ['standings', seasonId],
+    queryFn: () => leaguesService.getStandings(seasonId!),
   });
+
+  const standings = data?.standings ?? [];
+  const league = data?.league;
 
   const onRefresh = useCallback(() => {
     refetch();
@@ -45,46 +41,20 @@ export default function StandingsScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {/* Header */}
       <View style={[styles.header, { borderBottomColor: border }]}>
         <ThemedText type="title" style={styles.title}>
-          Standings
+          {league ? `${league.name}` : 'Standings'}
         </ThemedText>
+
+        {league && (
+          <ThemedText style={styles.subtitle}>
+            {league.country} • {league.season}
+          </ThemedText>
+        )}
       </View>
 
-      <View style={[styles.tabs, { borderBottomColor: border }]}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsContent}
-        >
-          {LEAGUES.map((league) => (
-            <Pressable
-              key={league.id}
-              onPress={() => setSelectedLeague(league.id as League)}
-              style={[
-                styles.tab,
-                selectedLeague === league.id && {
-                  borderBottomWidth: 2,
-                  borderBottomColor: primary,
-                },
-              ]}
-            >
-              <ThemedText
-                style={[
-                  styles.tabText,
-                  selectedLeague === league.id && {
-                    color: primary,
-                    fontWeight: '600',
-                  },
-                ]}
-              >
-                {league.name}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-
+      {/* Content */}
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -99,8 +69,15 @@ export default function StandingsScreen() {
           <View style={styles.loading}>
             <ActivityIndicator size="large" color={primary} />
           </View>
+        ) : standings.length === 0 ? (
+          <View style={styles.empty}>
+            <ThemedText style={styles.emptyText}>
+              No standings available
+            </ThemedText>
+          </View>
         ) : (
           <>
+            {/* Table Header */}
             <View style={[styles.tableHeader, { borderBottomColor: border }]}>
               <View style={styles.posCol}>
                 <ThemedText style={styles.headerText}>#</ThemedText>
@@ -119,90 +96,86 @@ export default function StandingsScreen() {
               </View>
             </View>
 
+            {/* Table Body */}
             <View style={styles.table}>
-              {standings.map((team, index) => (
-                <View
-                  key={team.id}
-                  style={[
-                    styles.row,
-                    index !== standings.length - 1 && {
-                      borderBottomWidth: 1,
-                      borderBottomColor: border,
-                    },
-                    team.zone === 'champions' && {
-                      backgroundColor: `${primary}08`,
-                      borderLeftWidth: 3,
-                      borderLeftColor: primary,
-                    },
-                    team.zone === 'relegation' && {
-                      backgroundColor: '#ff444408',
-                      borderLeftWidth: 3,
-                      borderLeftColor: '#ff4444',
-                    },
-                  ]}
-                >
-                  <View style={styles.posCol}>
-                    <ThemedText style={styles.position}>
-                      {team.position}
-                    </ThemedText>
-                  </View>
+              {standings.map((row) => {
+                const isChampion = row.status === 'champions';
+                const isRelegated = row.status === 'relegated';
 
-                  <View style={styles.teamCol}>
-                    <View style={styles.teamInfo}>
-                      <View
-                        style={[styles.badge, { backgroundColor: background }]}
-                      >
-                        <ThemedText style={styles.badgeText}>
-                          {team.teamShort}
+                return (
+                  <View
+                    key={row.team.id}
+                    style={[
+                      styles.row,
+                      { borderBottomColor: border },
+                      isChampion && styles.championRow,
+                      isRelegated && styles.relegationRow,
+                    ]}
+                  >
+                    <View style={styles.posCol}>
+                      <ThemedText style={styles.position}>
+                        {row.position}
+                      </ThemedText>
+                    </View>
+
+                    <View style={styles.teamCol}>
+                      <View style={styles.teamInfo}>
+                        <View
+                          style={[
+                            styles.badge,
+                            { backgroundColor: background },
+                          ]}
+                        >
+                          <ThemedText style={styles.badgeText}>
+                            {row.team.clubName.charAt(0)}
+                          </ThemedText>
+                        </View>
+
+                        <ThemedText
+                          style={styles.teamName}
+                          numberOfLines={1}
+                        >
+                          {row.team.clubName}
                         </ThemedText>
                       </View>
-                      <ThemedText style={styles.teamName} numberOfLines={1}>
-                        {team.teamName}
+                    </View>
+
+                    <View style={styles.statCol}>
+                      <ThemedText style={styles.stat}>
+                        {row.played}
+                      </ThemedText>
+                    </View>
+
+                    <View style={styles.statCol}>
+                      <ThemedText
+                        style={[
+                          styles.stat,
+                          row.goalDifference > 0 && { color: '#22c55e' },
+                          row.goalDifference < 0 && { color: '#ef4444' },
+                        ]}
+                      >
+                        {row.goalDifference > 0 ? '+' : ''}
+                        {row.goalDifference}
+                      </ThemedText>
+                    </View>
+
+                    <View style={styles.ptsCol}>
+                      <ThemedText style={styles.points}>
+                        {row.points}
                       </ThemedText>
                     </View>
                   </View>
-
-                  <View style={styles.statCol}>
-                    <ThemedText style={styles.stat}>
-                      {team.played}
-                    </ThemedText>
-                  </View>
-
-                  <View style={styles.statCol}>
-                    <ThemedText
-                      style={[
-                        styles.stat,
-                        team.goalDifference > 0 && { color: '#22c55e' },
-                        team.goalDifference < 0 && { color: '#ef4444' },
-                      ]}
-                    >
-                      {team.goalDifference > 0 ? '+' : ''}
-                      {team.goalDifference}
-                    </ThemedText>
-                  </View>
-
-                  <View style={styles.ptsCol}>
-                    <ThemedText style={styles.points}>
-                      {team.points}
-                    </ThemedText>
-                  </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
-
-            {standings.length === 0 && (
-              <View style={styles.empty}>
-                <ThemedText style={styles.emptyText}>
-                  No standings available
-                </ThemedText>
-              </View>
-            )}
           </>
         )}
       </ScrollView>
     </ThemedView>
   );
 }
+
+/* ========================= STYLES ========================= */
 
 const styles = StyleSheet.create({
   container: {
@@ -212,26 +185,16 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
-    paddingBottom: 18,
+    paddingBottom: 16,
     borderBottomWidth: 1,
   },
   title: {
     fontSize: 22,
   },
-
-  tabs: {
-    borderBottomWidth: 1,
-  },
-  tabsContent: {
-    paddingHorizontal: 20,
-    gap: 24,
-  },
-  tab: {
-    paddingVertical: 14,
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: '500',
+  subtitle: {
+    fontSize: 13,
+    opacity: 0.6,
+    marginTop: 4,
   },
 
   content: {
@@ -241,6 +204,15 @@ const styles = StyleSheet.create({
   loading: {
     paddingTop: 80,
     alignItems: 'center',
+  },
+
+  empty: {
+    paddingTop: 80,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    opacity: 0.6,
   },
 
   tableHeader: {
@@ -254,7 +226,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     opacity: 0.6,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
 
   table: {
@@ -264,6 +235,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+
+  championRow: {
+    backgroundColor: '#22c55e12',
+    borderLeftWidth: 3,
+    borderLeftColor: '#22c55e',
+  },
+  relegationRow: {
+    backgroundColor: '#ef444412',
+    borderLeftWidth: 3,
+    borderLeftColor: '#ef4444',
   },
 
   posCol: {
@@ -316,14 +299,5 @@ const styles = StyleSheet.create({
   points: {
     fontSize: 16,
     fontWeight: '700',
-  },
-
-  empty: {
-    paddingTop: 80,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 15,
-    opacity: 0.6,
   },
 });

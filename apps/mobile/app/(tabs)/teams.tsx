@@ -32,7 +32,7 @@ export default function TeamsScreen() {
     isRefetching,
   } = useQuery({
     queryKey: ['teams'],
-    queryFn: () => teamsService.getAllTeams(),
+    queryFn: () => teamsService.getList(),
   });
 
   const onRefresh = useCallback(() => {
@@ -104,19 +104,19 @@ export default function TeamsScreen() {
                 <View style={styles.teamLeft}>
                   <View style={[styles.teamBadge, { borderColor: border }]}>
                     <ThemedText style={styles.teamBadgeText}>
-                      {team.shortName}
+                      {team.name.charAt(0).toUpperCase()}
                     </ThemedText>
                   </View>
                   <View style={styles.teamInfo}>
                     <ThemedText style={styles.teamName}>{team.name}</ThemedText>
-                    <ThemedText style={styles.teamLeague}>{team.league}</ThemedText>
+                    <ThemedText style={styles.teamLeague}>{team.club.name}</ThemedText>
                   </View>
                 </View>
                 <View style={styles.teamRight}>
-                  {team.position && (
+                  {team.season && (
                     <View style={[styles.positionBadge, { backgroundColor: `${primary}15` }]}>
                       <ThemedText style={[styles.positionText, { color: primary }]}>
-                        #{team.position}
+                        #{team.season.name}
                       </ThemedText>
                     </View>
                   )}

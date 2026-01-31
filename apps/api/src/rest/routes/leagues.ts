@@ -5,14 +5,11 @@ import {
   seasons,
   leagueStandings,
 } from "@football-intel/db/src/schema/core";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc } from "drizzle-orm";
 import { createRateLimiter } from "../../middleware/rate-limit";
 
 const app = new Hono();
 
-/**
- * GET /leagues
- */
 app.get("/", createRateLimiter(100, 60), async (c) => {
   const data = await db.query.leagues.findMany({
     with: { country: true },
@@ -20,9 +17,6 @@ app.get("/", createRateLimiter(100, 60), async (c) => {
   return c.json(data);
 });
 
-/**
- * GET /leagues/:id/seasons
- */
 app.get("/:id/seasons", createRateLimiter(100, 60), async (c) => {
   const leagueId = c.req.param("id");
   const data = await db.query.seasons.findMany({
@@ -32,13 +26,8 @@ app.get("/:id/seasons", createRateLimiter(100, 60), async (c) => {
   return c.json(data);
 });
 
-/**
- * GET /leagues/standings
- * Get standings for a specific season
- */
 app.get("/standings", createRateLimiter(100, 60), async (c) => {
   const seasonId = c.req.query("seasonId");
-
   if (!seasonId) {
     return c.json({ error: "seasonId is required" }, 400);
   }
@@ -47,16 +36,47 @@ app.get("/standings", createRateLimiter(100, 60), async (c) => {
     where: eq(leagueStandings.seasonId, seasonId),
     with: {
       team: {
-        with: { club: true },
+        with: {
+          club: true,
+          season: {
+            with: {
+              league: {
+                with: { country: true },
+              },
+            },
+          },
+        },
       },
     },
-    orderBy: [
-      desc(leagueStandings.points),
-      desc(leagueStandings.goalDifference),
-    ],
+    orderBy: [asc(leagueStandings.position)],
   });
 
-  return c.json(data);
+  return c.json({
+    seasonId,
+    league: {
+      id: data[0]?.team.season.league.id,
+      name: data[0]?.team.season.league.name,
+      country: data[0]?.team.season.league.country.name,
+      season: data[0]?.team.season.name,
+    },
+    standings: data.map((row) => ({
+      position: row.position,
+      team: {
+        id: row.team.id,
+        name: row.team.name,
+        clubName: row.team.club.name,
+      },
+      played: row.played,
+      wins: row.wins,
+      draws: row.draws,
+      losses: row.losses,
+      goalsFor: row.goalsFor,
+      goalsAgainst: row.goalsAgainst,
+      goalDifference: row.goalDifference,
+      points: row.points - (row.pointsDeduction ?? 0),
+      status: row.status,
+    })),
+  });
 });
 
 export default app;

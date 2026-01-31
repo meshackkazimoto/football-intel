@@ -26,7 +26,11 @@ export const leagues = pgTable("leagues", {
     .references(() => countries.id)
     .notNull(),
   name: varchar("name", { length: 200 }).notNull(),
+  shortName: varchar("short_name", { length: 20 }), // NBC, EPL
   tier: integer("tier").notNull(),
+  type: varchar("type", { length: 20 }).default("league"), // league | cup
+  numberOfTeams: integer("number_of_teams"),
+  logo: text("logo"), // URL or asset ref
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -123,10 +127,14 @@ export const matches = pgTable("matches", {
     .notNull(),
   matchDate: timestamp("match_date").notNull(),
   venue: varchar("venue", { length: 200 }),
-  status: varchar("status", { length: 20 }).notNull(), // scheduled | finished
+  status: varchar("status", { length: 20 }).notNull(), // scheduled | live | half_time | finished | postponed
   homeScore: integer("home_score"),
   awayScore: integer("away_score"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  currentMinute: integer("current_minute"), // nullable
+  period: varchar("period", { length: 5 }), // 1H | HT | 2H | FT
+  startedAt: timestamp("started_at"),
+  endedAt: timestamp("ended_at"),
 });
 
 export const matchEvents = pgTable(
@@ -329,7 +337,7 @@ export const leagueStandings = pgTable(
     teamId: uuid("team_id")
       .references(() => teams.id)
       .notNull(),
-
+    position: integer("position").notNull(),
     played: integer("played").default(0).notNull(),
     wins: integer("wins").default(0).notNull(),
     draws: integer("draws").default(0).notNull(),
@@ -338,13 +346,18 @@ export const leagueStandings = pgTable(
     goalsAgainst: integer("goals_against").default(0).notNull(),
     goalDifference: integer("goal_difference").default(0).notNull(),
     points: integer("points").default(0).notNull(),
-
+    pointsDeduction: integer("points_deduction").default(0), // real world
+    status: varchar("status", { length: 20 }), // promotion | relegation | playoff | normal
     lastComputedAt: timestamp("last_computed_at").defaultNow().notNull(),
   },
   (table) => ({
     uniqueSeasonTeam: unique("unique_season_team").on(
       table.seasonId,
       table.teamId,
+    ),
+    positionIdx: index("league_position_idx").on(
+      table.seasonId,
+      table.position,
     ),
   }),
 );

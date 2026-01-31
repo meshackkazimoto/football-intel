@@ -4,7 +4,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Colors } from '@/constants/theme';
-import type { Match } from '@/services/matches/types';
 
 function formatTime(dateStr: string) {
   const d = new Date(dateStr);

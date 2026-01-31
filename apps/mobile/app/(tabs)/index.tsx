@@ -49,13 +49,15 @@ export default function HomeScreen() {
   });
 
   const {
-    data: liveMatches = [],
+    data,
     refetch: refetchLive,
   } = useQuery({
     queryKey: ['matches', 'live'],
     queryFn: () => matchesService.getLive(),
     refetchInterval: 30000,
   });
+
+  const liveMatches = data?.data ?? [];
 
   const onRefresh = useCallback(() => {
     refetchToday();

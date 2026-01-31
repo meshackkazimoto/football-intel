@@ -1,29 +1,92 @@
 import { api } from '../api';
-import type { Match, MatchesListResponse } from './types';
+
+import type {
+  MatchListItem,
+  MatchesListResponse,
+} from './types/match-list';
+
+import type {
+  LiveMatch,
+  LiveMatchesResponse,
+} from './types/match-live';
+
+import type { MatchLiveDetails } from './types/match-live-details';
+
+import type { MatchResult } from './types/match-result';
 
 export const matchesService = {
-  getLive: async (): Promise<Match[]> => {
-    const { data } = await api.get<Match[]>('/matches/today');
+  getToday: async (): Promise<MatchListItem[]> => {
+    const { data } = await api.get<MatchListItem[]>('/matches/today');
     return data;
   },
-  getToday: async (): Promise<Match[]> => {
-    const { data } = await api.get<Match[]>('/matches/today');
+
+  getUpcoming: async (): Promise<MatchListItem[]> => {
+    const { data } = await api.get<MatchListItem[]>('/matches/upcoming');
     return data;
   },
-  getUpcoming: async (): Promise<Match[]> => {
-    const { data } = await api.get<Match[]>('/matches/upcoming');
+
+  getRecent: async (): Promise<MatchListItem[]> => {
+    const { data } = await api.get<MatchListItem[]>('/matches/recent');
     return data;
   },
-  getRecent: async (): Promise<Match[]> => {
-    const { data } = await api.get<Match[]>('/matches/recent');
+
+  getList: async (
+    params?: {
+      seasonId?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<MatchesListResponse> => {
+    const { data } = await api.get<MatchesListResponse>(
+      '/matches',
+      { params }
+    );
     return data;
   },
-  getList: async (params?: { seasonId?: string; status?: string; page?: number; limit?: number }): Promise<MatchesListResponse> => {
-    const { data } = await api.get<MatchesListResponse>('/matches', { params });
+
+  getLive: async (
+    params?: { seasonId?: string }
+  ): Promise<LiveMatchesResponse> => {
+    const { data } = await api.get<LiveMatchesResponse>(
+      '/matches/live',
+      { params }
+    );
     return data;
   },
-  getResult: async (id: string) => {
-    const { data } = await api.get(`/matches/${id}/result`);
+
+  getLiveDetails: async (id: string): Promise<MatchLiveDetails> => {
+    const { data } = await api.get<MatchLiveDetails>(
+      `/matches/${id}/live`
+    );
+    return data;
+  },
+
+  getResult: async (id: string): Promise<MatchResult> => {
+    const { data } = await api.get<MatchResult>(
+      `/matches/${id}/result`
+    );
+    return data;
+  },
+
+  getStats: async (id: string) => {
+    const { data } = await api.get(
+      `/matches/${id}/stats`
+    );
+    return data;
+  },
+
+  getPrediction: async (id: string) => {
+    const { data } = await api.get(
+      `/matches/${id}/prediction`
+    );
+    return data;
+  },
+
+  getH2H: async (clubA: string, clubB: string) => {
+    const { data } = await api.get('/matches/h2h', {
+      params: { clubA, clubB },
+    });
     return data;
   },
 };
