@@ -15,6 +15,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "typesense": "^2.1.0"
+    "typesense": "^2.1.0",
+    "drizzle-orm": "^0.45.1"
   }
 }
