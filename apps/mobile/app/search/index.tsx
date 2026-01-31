@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -28,28 +28,40 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<SearchTab>('all');
 
-  const {
-    data: results,
-    isLoading,
-  } = useQuery({
-    queryKey: ['search', searchQuery],
-    queryFn: () => searchService.search(searchQuery),
+  const { data, isLoading } = useQuery({
+    queryKey: ['search', searchQuery, activeTab],
+    queryFn: () =>
+      searchService.search({
+        q: searchQuery,
+        type: activeTab === 'all' ? 'all' : activeTab,
+      }),
     enabled: searchQuery.length > 2,
   });
 
+  const results = data?.results;
+
   const filteredResults = useMemo(() => {
-    if (!results) return { matches: [], teams: [] };
+    if (!results) {
+      return { matches: [], teams: [] };
+    }
 
     if (activeTab === 'matches') {
       return { matches: results.matches, teams: [] };
     }
+
     if (activeTab === 'teams') {
       return { matches: [], teams: results.teams };
     }
-    return results;
+
+    return {
+      matches: results.matches,
+      teams: results.teams,
+    };
   }, [results, activeTab]);
 
-  const hasResults = filteredResults.matches.length > 0 || filteredResults.teams.length > 0;
+  const hasResults =
+    filteredResults.matches.length > 0 ||
+    filteredResults.teams.length > 0;
 
   return (
     <ThemedView style={styles.container}>
@@ -62,7 +74,12 @@ export default function SearchScreen() {
       </View>
 
       <View style={styles.searchContainer}>
-        <View style={[styles.searchBox, { backgroundColor: background, borderColor: border }]}>
+        <View
+          style={[
+            styles.searchBox,
+            { backgroundColor: background, borderColor: border },
+          ]}
+        >
           <IconSymbol name="magnifyingglass" size={18} color={primary} />
           <TextInput
             style={[styles.searchInput, { color: textColor }]}
@@ -74,70 +91,42 @@ export default function SearchScreen() {
           />
           {searchQuery.length > 0 && (
             <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-              <IconSymbol name="xmark.circle.fill" size={18} color={`${textColor}60`} />
+              <IconSymbol
+                name="xmark.circle.fill"
+                size={18}
+                color={`${textColor}60`}
+              />
             </Pressable>
           )}
         </View>
 
         {searchQuery.length > 2 && (
           <View style={[styles.tabs, { borderBottomColor: border }]}>
-            <Pressable
-              onPress={() => setActiveTab('all')}
-              style={[
-                styles.tab,
-                activeTab === 'all' && {
-                  borderBottomWidth: 2,
-                  borderBottomColor: primary,
-                },
-              ]}
-            >
-              <ThemedText
+            {(['all', 'matches', 'teams'] as SearchTab[]).map((tab) => (
+              <Pressable
+                key={tab}
+                onPress={() => setActiveTab(tab)}
                 style={[
-                  styles.tabText,
-                  activeTab === 'all' && { color: primary, fontWeight: '600' },
+                  styles.tab,
+                  activeTab === tab && {
+                    borderBottomWidth: 2,
+                    borderBottomColor: primary,
+                  },
                 ]}
               >
-                All
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => setActiveTab('matches')}
-              style={[
-                styles.tab,
-                activeTab === 'matches' && {
-                  borderBottomWidth: 2,
-                  borderBottomColor: primary,
-                },
-              ]}
-            >
-              <ThemedText
-                style={[
-                  styles.tabText,
-                  activeTab === 'matches' && { color: primary, fontWeight: '600' },
-                ]}
-              >
-                Matches
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => setActiveTab('teams')}
-              style={[
-                styles.tab,
-                activeTab === 'teams' && {
-                  borderBottomWidth: 2,
-                  borderBottomColor: primary,
-                },
-              ]}
-            >
-              <ThemedText
-                style={[
-                  styles.tabText,
-                  activeTab === 'teams' && { color: primary, fontWeight: '600' },
-                ]}
-              >
-                Teams
-              </ThemedText>
-            </Pressable>
+                <ThemedText
+                  style={[
+                    styles.tabText,
+                    activeTab === tab && {
+                      color: primary,
+                      fontWeight: '600',
+                    },
+                  ]}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </ThemedText>
+              </Pressable>
+            ))}
           </View>
         )}
       </View>
@@ -211,17 +200,31 @@ export default function SearchScreen() {
                       ]}
                     >
                       <View style={styles.teamLeft}>
-                        <View style={[styles.teamBadge, { borderColor: border }]}>
+                        <View
+                          style={[styles.teamBadge, { borderColor: border }]}
+                        >
                           <ThemedText style={styles.teamBadgeText}>
-                            {team.shortName}
+                            {team.name
+                              .split(' ')
+                              .map((w) => w[0])
+                              .join('')
+                              .slice(0, 3)}
                           </ThemedText>
                         </View>
                         <View style={styles.teamInfo}>
-                          <ThemedText style={styles.teamName}>{team.name}</ThemedText>
-                          <ThemedText style={styles.teamLeague}>{team.league}</ThemedText>
+                          <ThemedText style={styles.teamName}>
+                            {team.name}
+                          </ThemedText>
+                          <ThemedText style={styles.teamLeague}>
+                            {team.clubName} · {team.leagueName}
+                          </ThemedText>
                         </View>
                       </View>
-                      <IconSymbol name="chevron.right" size={18} color={`${textColor}40`} />
+                      <IconSymbol
+                        name="chevron.right"
+                        size={18}
+                        color={`${textColor}40`}
+                      />
                     </Pressable>
                   ))}
                 </View>
@@ -235,9 +238,7 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
 
   header: {
     paddingTop: 56,
@@ -253,6 +254,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
   },
+
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -263,6 +265,7 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 16,
   },
+
   searchInput: {
     flex: 1,
     fontSize: 15,
@@ -273,11 +276,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
   },
+
   tab: {
     flex: 1,
     paddingVertical: 12,
     alignItems: 'center',
   },
+
   tabText: {
     fontSize: 14,
     fontWeight: '500',
@@ -293,6 +298,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+
   placeholderIcon: {
     width: 72,
     height: 72,
@@ -302,13 +308,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  placeholderIconText: {
-    fontSize: 32,
-  },
+
+  placeholderIconText: { fontSize: 32 },
+
   placeholderTitle: {
     fontSize: 18,
     fontWeight: '600',
   },
+
   placeholderText: {
     fontSize: 15,
     opacity: 0.6,
@@ -325,10 +332,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
   },
+
   emptySubtext: {
     fontSize: 14,
     opacity: 0.6,
@@ -343,12 +352,14 @@ const styles = StyleSheet.create({
   section: {
     gap: 16,
   },
+
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
   },
 
   matchesList: {},
+
   matchItem: {
     paddingVertical: 12,
   },
@@ -356,6 +367,7 @@ const styles = StyleSheet.create({
   teamsList: {
     gap: 12,
   },
+
   teamCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -364,6 +376,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+
   teamCardPressed: {
     opacity: 0.7,
   },
@@ -375,6 +388,7 @@ const styles = StyleSheet.create({
     gap: 14,
     marginRight: 16,
   },
+
   teamBadge: {
     width: 44,
     height: 44,
@@ -383,18 +397,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   teamBadgeText: {
     fontSize: 13,
     fontWeight: '700',
   },
+
   teamInfo: {
     flex: 1,
     gap: 4,
   },
+
   teamName: {
     fontSize: 15,
     fontWeight: '600',
   },
+
   teamLeague: {
     fontSize: 13,
     fontWeight: '500',

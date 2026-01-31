@@ -81,9 +81,7 @@ export default function HomeScreen() {
           <ThemedText type="title" style={styles.brand}>
             Football Intel
           </ThemedText>
-          <ThemedText style={styles.tagline}>
-            Tanzania football, live & local
-          </ThemedText>
+         
         </View>
 
         <View style={styles.headerActions}>
