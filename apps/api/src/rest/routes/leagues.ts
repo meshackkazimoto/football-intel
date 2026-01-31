@@ -7,8 +7,9 @@ import {
 } from "@football-intel/db/src/schema/core";
 import { eq, desc, asc } from "drizzle-orm";
 import { createRateLimiter } from "../../middleware/rate-limit";
+import { Env } from "src/env";
 
-const app = new Hono();
+const app = new Hono<Env>();
 
 app.get("/", createRateLimiter(100, 60), async (c) => {
   const data = await db.query.leagues.findMany({

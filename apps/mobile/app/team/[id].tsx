@@ -34,7 +34,7 @@ export default function TeamDetailScreen() {
     isRefetching,
   } = useQuery({
     queryKey: ['team', id],
-    queryFn: () => teamsService.getTeamDetails(id as string),
+    queryFn: () => teamsService.getById(id as string),
     enabled: !!id,
   });
 
@@ -82,7 +82,7 @@ export default function TeamDetailScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <IconSymbol name="chevron.left" size={24} color={primary} />
         </Pressable>
-        <ThemedText type="subtitle">{team.league}</ThemedText>
+        <ThemedText type="subtitle">{team.club.name}</ThemedText>
         <View style={{ width: 24 }} />
       </View>
 
@@ -99,7 +99,7 @@ export default function TeamDetailScreen() {
         <View style={styles.teamHeader}>
           <View style={[styles.teamBadge, { borderColor: border }]}>
             <ThemedText style={styles.teamBadgeText}>
-              {team.shortName}
+              {team.club.name.charAt(0).toUpperCase()}
             </ThemedText>
           </View>
           <ThemedText style={styles.teamName}>{team.name}</ThemedText>
@@ -108,7 +108,7 @@ export default function TeamDetailScreen() {
 
         <View style={[styles.statsGrid, { borderColor: border }]}>
           <View style={[styles.statBox, { borderRightWidth: 1, borderRightColor: border }]}>
-            <ThemedText style={styles.statValue}>{team.position || '-'}</ThemedText>
+            <ThemedText style={styles.statValue}>{team. || '-'}</ThemedText>
             <ThemedText style={styles.statLabel}>Position</ThemedText>
           </View>
           <View style={[styles.statBox, { borderRightWidth: 1, borderRightColor: border }]}>

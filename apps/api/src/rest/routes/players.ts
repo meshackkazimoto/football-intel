@@ -13,13 +13,10 @@ import {
   paginationSchema,
   getPaginationOffset,
 } from "@football-intel/validation";
+import { Env } from "src/env";
 
-const app = new Hono();
+const app = new Hono<Env>();
 
-/**
- * GET /players
- * List players with optional search
- */
 app.get("/", createRateLimiter(100, 60), cacheMiddleware(60), async (c) => {
   const query = paginationSchema.parse(c.req.query());
   const offset = getPaginationOffset(query.page, query.limit);
@@ -36,10 +33,6 @@ app.get("/", createRateLimiter(100, 60), cacheMiddleware(60), async (c) => {
   });
 });
 
-/**
- * GET /players/:id
- * Detailed player profile
- */
 app.get("/:id", createRateLimiter(100, 60), async (c) => {
   const id = c.req.param("id");
   const player = await db.query.players.findFirst({
@@ -76,9 +69,6 @@ app.get("/:id", createRateLimiter(100, 60), async (c) => {
   return c.json(player);
 });
 
-/**
- * GET /players/:id/stats
- */
 app.get("/:id/stats", createRateLimiter(50, 60), async (c) => {
   const id = c.req.param("id");
   const seasonId = c.req.query("seasonId");
@@ -98,10 +88,6 @@ app.get("/:id/stats", createRateLimiter(50, 60), async (c) => {
   return c.json(stats);
 });
 
-/**
- * GET /players/:id/ratings
- * Match-by-match rating history
- */
 app.get("/:id/ratings", createRateLimiter(50, 60), async (c) => {
   const id = c.req.param("id");
   const data = await db.query.playerMatchRatings.findMany({

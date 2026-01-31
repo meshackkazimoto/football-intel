@@ -18,18 +18,13 @@ import teamRoutes from "./rest/routes/teams";
 import countryRoutes from "./rest/routes/countries";
 import clubRoutes from "./rest/routes/clubs";
 import authRoutes from "./rest/routes/auth";
+import { Env } from "./env";
 
 dotenv.config();
 
 logger.info("API starting...");
-
-type Env = {
-  Variables: {
-    requestId: string;
-  };
-};
-
 const app = new Hono<Env>();
+const v1 = new Hono<Env>();
 
 // CORS Middleware - must be before other middleware
 app.use(
@@ -72,9 +67,6 @@ app.onError((err, c) => {
 app.get("/health", createRateLimiter(100, 60), (c) => {
   return c.json({ status: "ok", service: "football-intel-api" });
 });
-
-// REST Routes with /api/v1 prefix
-const v1 = new Hono<Env>();
 
 v1.route("/admin", adminRoutes);
 v1.route("/metrics", metricsRoutes);

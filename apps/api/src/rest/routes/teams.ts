@@ -8,8 +8,9 @@ import {
 } from "@football-intel/db/src/schema/core";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { createRateLimiter } from "../../middleware/rate-limit";
+import { Env } from "src/env";
 
-const app = new Hono();
+const app = new Hono<Env>();
 
 app.get("/", createRateLimiter(100, 60), async (c) => {
   const seasonId = c.req.query("seasonId");

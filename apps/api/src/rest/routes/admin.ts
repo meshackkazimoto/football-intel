@@ -22,8 +22,6 @@ import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
 import { createRateLimiter } from "src/middleware/rate-limit";
 
-console.log("Admin routes module loading...");
-
 const app = new Hono<{
   Variables: {
     user: User | null;

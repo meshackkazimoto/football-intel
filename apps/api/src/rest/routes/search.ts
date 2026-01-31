@@ -3,6 +3,7 @@ import { typesense } from "@football-intel/search";
 import { db } from "@football-intel/db/src/client";
 import { matches } from "@football-intel/db/src/schema/core";
 import { inArray, desc } from "drizzle-orm";
+import { Env } from "src/env";
 
 interface PlayerSearchResult {
   id: string;
@@ -40,7 +41,7 @@ interface SearchResults {
   clubs: [];
 }
 
-const app = new Hono();
+const app = new Hono<Env>();
 
 app.get("/", async (c) => {
   const q = c.req.query("q") ?? "";

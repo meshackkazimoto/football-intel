@@ -14,8 +14,9 @@ import {
   paginationSchema,
   getPaginationOffset,
 } from "@football-intel/validation";
+import { Env } from "src/env";
 
-const app = new Hono();
+const app = new Hono<Env>();
 
 app.get("/", createRateLimiter(50, 60), cacheMiddleware(30), async (c) => {
   const seasonId = c.req.query("seasonId");
