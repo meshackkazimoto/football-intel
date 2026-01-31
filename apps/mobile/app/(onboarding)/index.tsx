@@ -2,12 +2,17 @@ import { useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
   StyleSheet,
   View,
   Pressable,
+  Image,
 } from 'react-native';
+import Animated, {
+  useAnimatedScrollHandler,
+  useSharedValue,
+  interpolate,
+  useAnimatedStyle,
+} from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -15,63 +20,78 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { setOnboardingDone } from '@/lib/storage';
 import { Colors } from '@/constants/theme';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const SLIDES = [
   {
     title: 'Live scores and results',
     subtitle: 'Follow matches in real time and see full-time results at a glance.',
+    image: require('@/assets/onboarding/live-scores.png'),
   },
   {
     title: 'Leagues and standings',
     subtitle: 'Browse competitions and keep track of the table throughout the season.',
+    image: require('@/assets/onboarding/standings.png'),
   },
   {
     title: 'Your experience, your way',
     subtitle: 'Use the app without an account, or sign in to sync preferences across devices.',
+    image: require('@/assets/onboarding/personalize.png'),
   },
 ];
+
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 export default function OnboardingScreen() {
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList>(null);
+
   const primary = useThemeColor({}, 'primary');
   const border = useThemeColor({}, 'border');
 
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (i !== index) setIndex(i);
-  };
+  const scrollX = useSharedValue(0);
+
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
 
   const handleNext = () => {
     if (index < SLIDES.length - 1) {
-      listRef.current?.scrollToOffset({ offset: width * (index + 1), animated: true });
+      listRef.current?.scrollToOffset({
+        offset: width * (index + 1),
+        animated: true,
+      });
     } else {
-      setOnboardingDone().then(() => router.replace('/landing'));
+      setOnboardingDone().then(() => router.replace('/(tabs)'));
     }
   };
 
   return (
     <ThemedView style={styles.container}>
-      <FlatList
+      <AnimatedFlatList
         ref={listRef}
         data={SLIDES}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onScroll}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         keyExtractor={(_, i) => String(i)}
-        renderItem={({ item }) => (
-          <View style={[styles.slide, { width }]}>
-            <View style={styles.content}>
-              <ThemedText type="title" style={styles.title}>
-                {item.title}
-              </ThemedText>
-              <ThemedText style={styles.subtitle}>{item.subtitle}</ThemedText>
-            </View>
-          </View>
+        onMomentumScrollEnd={(e) =>
+          setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
+        }
+        renderItem={({ item, index: i }) => (
+          <Slide
+            item={item}
+            index={i}
+            scrollX={scrollX}
+            primary={primary}
+          />
         )}
       />
+
       <View style={styles.footer}>
         <View style={styles.dots}>
           {SLIDES.map((_, i) => (
@@ -79,11 +99,15 @@ export default function OnboardingScreen() {
               key={i}
               style={[
                 styles.dot,
-                { backgroundColor: i === index ? primary : border },
+                {
+                  backgroundColor: i === index ? primary : border,
+                  width: i === index ? 20 : 8,
+                },
               ]}
             />
           ))}
         </View>
+
         <Pressable
           onPress={handleNext}
           style={({ pressed }) => [
@@ -92,10 +116,8 @@ export default function OnboardingScreen() {
           ]}
         >
           <ThemedText
-            style={[
-              styles.buttonText,
-              { color: Colors.light.primaryForeground },
-            ]}
+            type="defaultSemiBold"
+            style={{ color: Colors.light.primaryForeground }}
           >
             {index < SLIDES.length - 1 ? 'Next' : 'Get started'}
           </ThemedText>
@@ -105,22 +127,92 @@ export default function OnboardingScreen() {
   );
 }
 
+function Slide({ item, index, scrollX, primary }: any) {
+  const animatedImageStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      scrollX.value,
+      [(index - 1) * width, index * width, (index + 1) * width],
+      [40, 0, 40]
+    );
+
+    const scale = interpolate(
+      scrollX.value,
+      [(index - 1) * width, index * width, (index + 1) * width],
+      [0.9, 1, 0.9]
+    );
+
+    return {
+      transform: [{ translateY }, { scale }],
+    };
+  });
+
+  const animatedTextStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollX.value,
+      [(index - 1) * width, index * width, (index + 1) * width],
+      [0, 1, 0]
+    );
+
+    const translateY = interpolate(
+      scrollX.value,
+      [(index - 1) * width, index * width, (index + 1) * width],
+      [20, 0, 20]
+    );
+
+    return {
+      opacity,
+      transform: [{ translateY }],
+    };
+  });
+
+  return (
+    <View style={[styles.slide, { width }]}>
+      <Animated.View style={[styles.imageWrapper, animatedImageStyle]}>
+        <Image source={item.image} style={styles.image} />
+      </Animated.View>
+
+      <Animated.View style={[styles.content, animatedTextStyle]}>
+        <ThemedText type="title" style={styles.title}>
+          {item.title}
+        </ThemedText>
+        <ThemedText style={styles.subtitle}>
+          {item.subtitle}
+        </ThemedText>
+      </Animated.View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
   slide: {
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageWrapper: {
+    height: height * 0.35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  image: {
+    width: width * 0.75,
+    height: '100%',
+    resizeMode: 'contain',
   },
   content: {
+    alignItems: 'center',
     gap: 16,
   },
   title: {
-    marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
+    textAlign: 'center',
     fontSize: 17,
     lineHeight: 24,
     opacity: 0.85,
@@ -137,18 +229,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dot: {
-    width: 8,
     height: 8,
     borderRadius: 4,
   },
   button: {
     height: 52,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  buttonText: {
-    fontSize: 17,
-    fontWeight: '600',
   },
 });
