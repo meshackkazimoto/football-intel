@@ -14,7 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { teamsService } from '@/services/teams/teams.service';
+import { clubsService } from '@/services/clubs/clubs.service';
 
 export default function TeamsScreen() {
   const router = useRouter();
@@ -26,21 +26,21 @@ export default function TeamsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const {
-    data: teams = [],
+    data: clubs = [],
     isLoading,
     refetch,
     isRefetching,
   } = useQuery({
-    queryKey: ['teams'],
-    queryFn: () => teamsService.getList(),
+    queryKey: ['clubs'],
+    queryFn: clubsService.getList,
   });
 
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
 
-  const filteredTeams = teams.filter((team) =>
-    team.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredClubs = clubs.filter((club) =>
+    club.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -83,7 +83,7 @@ export default function TeamsScreen() {
           <View style={styles.loading}>
             <ActivityIndicator size="large" color={primary} />
           </View>
-        ) : filteredTeams.length === 0 ? (
+        ) : filteredClubs.length === 0 ? (
           <View style={styles.empty}>
             <ThemedText style={styles.emptyText}>
               {searchQuery ? 'No teams found' : 'No teams available'}
@@ -91,10 +91,10 @@ export default function TeamsScreen() {
           </View>
         ) : (
           <View style={styles.teams}>
-            {filteredTeams.map((team, index) => (
+            {filteredClubs.map((club) => (
               <Pressable
-                key={team.id}
-                onPress={() => router.push(`/team/${team.id}`)}
+                key={club.id}
+                onPress={() => router.push(`/team/${club.id}`)}
                 style={({ pressed }) => [
                   styles.teamCard,
                   { borderColor: border },
@@ -104,24 +104,18 @@ export default function TeamsScreen() {
                 <View style={styles.teamLeft}>
                   <View style={[styles.teamBadge, { borderColor: border }]}>
                     <ThemedText style={styles.teamBadgeText}>
-                      {team.name.charAt(0).toUpperCase()}
+                      {club.name.charAt(0).toUpperCase()}
                     </ThemedText>
                   </View>
                   <View style={styles.teamInfo}>
-                    <ThemedText style={styles.teamName}>{team.name}</ThemedText>
-                    <ThemedText style={styles.teamLeague}>{team.club.name}</ThemedText>
+                    <ThemedText style={styles.teamName}>{club.name}</ThemedText>
+                    <ThemedText style={styles.teamLeague}>
+                      {club.country.name}
+                    </ThemedText>
                   </View>
                 </View>
-                <View style={styles.teamRight}>
-                  {team.season && (
-                    <View style={[styles.positionBadge, { backgroundColor: `${primary}15` }]}>
-                      <ThemedText style={[styles.positionText, { color: primary }]}>
-                        #{team.season.name}
-                      </ThemedText>
-                    </View>
-                  )}
-                  <IconSymbol name="chevron.right" size={18} color={`${textColor}40`} />
-                </View>
+
+                <IconSymbol name="chevron.right" size={18} color={`${textColor}40`} />
               </Pressable>
             ))}
           </View>

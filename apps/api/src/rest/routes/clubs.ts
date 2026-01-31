@@ -44,15 +44,25 @@ app.get("/:id/current-team", createRateLimiter(100, 60), async (c) => {
     return c.json({ error: "Club not found" }, 404);
   }
 
-  let team = await db.query.teams.findFirst({
+  const season =
+    (await db.query.seasons.findFirst({
+      where: eq(seasons.isCurrent, true),
+      orderBy: desc(seasons.startDate),
+    })) ??
+    (await db.query.seasons.findFirst({
+      orderBy: desc(seasons.startDate),
+    }));
+
+  if (!season) {
+    return c.json({ error: "No season found" }, 404);
+  }
+
+  const team = await db.query.teams.findFirst({
     where: eq(teams.clubId, clubId),
     with: {
       season: true,
     },
-    orderBy: [
-      desc(seasons.isCurrent),
-      desc(seasons.startDate),
-    ],
+    orderBy: desc(teams.createdAt),
   });
 
   if (!team) {
@@ -71,9 +81,9 @@ app.get("/:id/current-team", createRateLimiter(100, 60), async (c) => {
       id: team.id,
       name: team.name,
       season: {
-        id: team.season.id,
-        name: team.season.name,
-        isCurrent: team.season.isCurrent,
+        id: season.id,
+        name: season.name,
+        isCurrent: season.isCurrent,
       },
     },
   });

@@ -108,7 +108,7 @@ export default function TeamDetailScreen() {
 
         <View style={[styles.statsGrid, { borderColor: border }]}>
           <View style={[styles.statBox, { borderRightWidth: 1, borderRightColor: border }]}>
-            <ThemedText style={styles.statValue}>{team. || '-'}</ThemedText>
+            <ThemedText style={styles.statValue}>{team.position || '-'}</ThemedText>
             <ThemedText style={styles.statLabel}>Position</ThemedText>
           </View>
           <View style={[styles.statBox, { borderRightWidth: 1, borderRightColor: border }]}>
