@@ -370,6 +370,40 @@ export const leagueStandings = pgTable(
   }),
 );
 
+export const moderatorActions = pgTable("moderator_actions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  moderatorId: uuid("moderator_id").notNull(),
+  role: varchar("role", { length: 20 }).notNull(), // MODERATOR | ADMIN
+
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: uuid("entity_id"),
+
+  action: varchar("action", { length: 50 }).notNull(),  // CREATE_EVENT | UPDATE_STATS | CHANGE_STATUS | CREATE_FIXTURE
+
+  matchId: uuid("match_id"),
+  seasonId: uuid("season_id"),
+
+  status: varchar("status", { length: 20 }).default("accepted"),
+  // accepted | corrected | rejected
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const moderatorScores = pgTable("moderator_scores", {
+  moderatorId: uuid("moderator_id").primaryKey(),
+
+  totalActions: integer("total_actions").default(0).notNull(),
+  acceptedActions: integer("accepted_actions").default(0).notNull(),
+  correctedActions: integer("corrected_actions").default(0).notNull(),
+  rejectedActions: integer("rejected_actions").default(0).notNull(),
+
+  trustScore: integer("trust_score").default(100).notNull(),
+
+  lastActiveAt: timestamp("last_active_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // relations
 export const countriesRelations = relations(countries, ({ many }) => ({
   leagues: many(leagues),
