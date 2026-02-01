@@ -31,6 +31,7 @@ import manageMatchEvents from "./manage-match-events";
 import manageMatchStats from "./manage-match-stats";
 import manageMatchStatus from "./manage-match-status";
 import { requireRole } from "src/middleware/require-role";
+import { createRoleRateLimiter } from "src/middleware/role-rate-limit";
 
 const app = new Hono<{
   Variables: {
@@ -41,6 +42,7 @@ const app = new Hono<{
 
 app.use("*", authMiddleware);
 app.use("*", requireRole(["ADMIN", "MODERATOR"]));
+app.use("*", createRoleRateLimiter());
 
 app.use("*", async (c, next) => {
   console.log(`Admin request: ${c.req.method} ${c.req.path}`);
