@@ -2,7 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { User } from "lucia";
 
 export const requireRole = (
-  allowedRoles: Array<"ADMIN" | "MODERATOR">
+  allowedRoles: Array<"SUPER_ADMIN" | "ADMIN" | "MODERATOR">
 ) =>
   createMiddleware<{
     Variables: {

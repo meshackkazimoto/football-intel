@@ -14,7 +14,7 @@ const app = new Hono<{
   };
 }>();
 
-app.use("*", requireRole(["ADMIN", "MODERATOR"]));
+app.use("*", requireRole(["SUPER_ADMIN", "ADMIN", "MODERATOR"]));
 
 app.post("/", async (c) => {
   const body = await c.req.json();

@@ -17,7 +17,7 @@ const app = new Hono<{
     };
 }>();
 
-app.post("/", requireRole(["ADMIN"]), async (c) => {
+app.post("/", requireRole(["SUPER_ADMIN", "ADMIN"]), async (c) => {
     const parsed = CreateLeagueSchema.safeParse(await c.req.json());
     if (!parsed.success) {
         return c.json({ error: parsed.error.flatten() }, 400);
@@ -52,7 +52,7 @@ app.post("/", requireRole(["ADMIN"]), async (c) => {
     return c.json(league, 201);
 });
 
-app.patch("/:id", requireRole(["ADMIN"]), async (c) => {
+app.patch("/:id", requireRole(["SUPER_ADMIN", "ADMIN"]), async (c) => {
     const body = await c.req.json();
     const parsed = UpdateLeagueSchema.safeParse({
         ...body,
@@ -97,7 +97,7 @@ app.get("/", requireRole(["MODERATOR"]), async (c) => {
     return c.json(data);
 });
 
-app.delete("/:id", requireRole(["ADMIN"]), async (c) => {
+app.delete("/:id", requireRole(["SUPER_ADMIN", "ADMIN"]), async (c) => {
     const id = c.req.param("id");
 
     const existingSeason = await db.query.seasons.findFirst({

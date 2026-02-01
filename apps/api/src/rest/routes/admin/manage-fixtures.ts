@@ -10,6 +10,7 @@ import {
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
 import { enforceMatchUnlocked } from "src/middleware/match-lock";
+import { requireRole } from "src/middleware/require-role";
 
 const app = new Hono<{
     Variables: {
@@ -17,6 +18,8 @@ const app = new Hono<{
         session: Session | null;
     };
 }>();
+
+app.use("*", requireRole(["SUPER_ADMIN", "ADMIN"]));
 
 app.post("/", async (c) => {
     const body = createFixtureSchema.parse(await c.req.json());

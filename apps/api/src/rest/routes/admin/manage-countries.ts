@@ -14,7 +14,7 @@ const app = new Hono<{
     };
 }>();
 
-app.use("*", requireRole(["ADMIN"]));
+app.use("*", requireRole(["SUPER_ADMIN", "ADMIN"]));
 
 app.get("/", async (c) => {
     const result = await db.query.countries.findMany({

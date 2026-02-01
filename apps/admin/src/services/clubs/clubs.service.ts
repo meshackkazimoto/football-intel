@@ -1,36 +1,46 @@
 import { apiClient } from "../api-client";
 import {
   Club,
-  ClubsResponse,
-  ClubFilters,
   CreateClubInput,
-  UpdateClubInput,
 } from "./types";
 
 export const clubsService = {
-  getClubs: async (filters?: ClubFilters): Promise<ClubsResponse> => {
-    const { data } = await apiClient.get<ClubsResponse>("/clubs", {
-      params: filters,
-    });
+  async getClubs(): Promise<Club[]> {
+    const { data } = await apiClient.get<Club[]>(
+      "/admin/clubs",
+    );
     return data;
   },
 
-  getClubById: async (id: string): Promise<Club> => {
-    const { data } = await apiClient.get<Club>(`/clubs/${id}`);
+  async getClubById(id: string): Promise<Club> {
+    const { data } = await apiClient.get<Club>(
+      `/admin/clubs/${id}`,
+    );
     return data;
   },
 
-  createClub: async (input: CreateClubInput): Promise<Club> => {
-    const { data } = await apiClient.post<Club>("/clubs", input);
+  async createClub(
+    input: CreateClubInput,
+  ): Promise<Club> {
+    const { data } = await apiClient.post<Club>(
+      "/admin/clubs",
+      input,
+    );
     return data;
   },
 
-  updateClub: async (id: string, input: UpdateClubInput): Promise<Club> => {
-    const { data } = await apiClient.patch<Club>(`/clubs/${id}`, input);
+  async updateClub(
+    id: string,
+    input: Partial<CreateClubInput>,
+  ): Promise<Club> {
+    const { data } = await apiClient.patch<Club>(
+      `/admin/clubs/${id}`,
+      input,
+    );
     return data;
   },
 
-  deleteClub: async (id: string): Promise<void> => {
-    await apiClient.delete(`/clubs/${id}`);
+  async deleteClub(id: string): Promise<void> {
+    await apiClient.delete(`/admin/clubs/${id}`);
   },
 };

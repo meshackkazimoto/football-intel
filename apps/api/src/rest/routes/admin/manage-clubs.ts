@@ -17,7 +17,7 @@ const app = new Hono<{
   };
 }>();
 
-app.use("*", requireRole(["ADMIN"]));
+app.use("*", requireRole(["SUPER_ADMIN", "ADMIN"]));
 
 app.get("/", async (c) => {
   const list = await db.query.clubs.findMany({

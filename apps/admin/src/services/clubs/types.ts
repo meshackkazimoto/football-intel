@@ -1,18 +1,32 @@
+export interface Country {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface Club {
+  id: string;
+  name: string;
+  slug: string;
+  foundedYear: number | null;
+  stadiumName: string | null;
+  stadiumCapacity: number | null;
+  isActive: boolean;
+  country: Country;
+}
+export interface CreateClubInput {
+  name: string;
+  slug?: string;
+  foundedYear?: number;
+  stadiumName?: string;
+  stadiumCapacity?: number;
+  countryId?: string;
+}
+
 import { z } from "zod";
 
-export const clubSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  slug: z.string(),
-  foundedYear: z.number().nullable(),
-  stadiumName: z.string().nullable(),
-  stadiumCapacity: z.number().nullable(),
-  city: z.string().nullable(),
-  country: z.string().nullable(),
-});
-
 export const createClubSchema = z.object({
-  name: z.string().min(2, "Club name is required"),
+  name: z.string().min(2),
   slug: z.string().optional(),
   foundedYear: z
     .number()
@@ -26,19 +40,3 @@ export const createClubSchema = z.object({
 });
 
 export const updateClubSchema = createClubSchema.partial();
-
-export type Club = z.infer<typeof clubSchema>;
-export type CreateClubInput = z.infer<typeof createClubSchema>;
-export type UpdateClubInput = z.infer<typeof updateClubSchema>;
-
-export interface ClubsResponse {
-  clubs: Club[];
-  total: number;
-}
-
-export interface ClubFilters {
-  search?: string;
-  countryId?: string;
-  page?: number;
-  limit?: number;
-}

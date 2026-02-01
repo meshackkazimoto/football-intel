@@ -41,7 +41,7 @@ const app = new Hono<{
 }>();
 
 app.use("*", authMiddleware);
-app.use("*", requireRole(["ADMIN", "MODERATOR"]));
+app.use("*", requireRole(["SUPER_ADMIN", "ADMIN", "MODERATOR"]));
 app.use("*", createRoleRateLimiter());
 
 app.use("*", async (c, next) => {
@@ -63,9 +63,6 @@ app.use("*", async (c, next) => {
   const user = c.get("user");
   if (!user) {
     return c.json({ error: "Unauthorized" }, 401);
-  }
-  if (user.role !== "ADMIN") {
-    return c.json({ error: "Forbidden" }, 403);
   }
   return next();
 });

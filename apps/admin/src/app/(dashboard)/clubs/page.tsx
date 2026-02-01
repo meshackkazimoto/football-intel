@@ -25,7 +25,7 @@ export default function ClubsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["clubs", searchQuery],
     queryFn: () =>
-      clubsService.getClubs(searchQuery ? { search: searchQuery } : {}),
+      clubsService.getClubs(),
   });
 
   const {
@@ -199,7 +199,7 @@ export default function ClubsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {data?.clubs.map((club, index) => (
+          {data?.map((club, index) => (
             <div
               key={club.id}
               className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden group hover:shadow-lg hover:border-emerald-500/20 transition-all"
@@ -233,12 +233,12 @@ export default function ClubsPage() {
                 )}
 
                 <div className="mt-6 space-y-3">
-                  {club.city && (
+                  {/* {club.city && (
                     <div className="flex items-center gap-3 text-slate-500 text-sm">
                       <MapPin className="w-4 h-4 text-slate-300" />
                       <span>{club.city}</span>
                     </div>
-                  )}
+                  )} */}
                   {club.stadiumName && (
                     <div className="flex items-center gap-3 text-slate-500 text-sm">
                       <Trophy className="w-4 h-4 text-slate-300" />

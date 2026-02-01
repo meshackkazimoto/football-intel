@@ -17,7 +17,7 @@ const app = new Hono<{
   };
 }>();
 
-app.use("*", requireRole(["ADMIN"]));
+app.use("*", requireRole(["SUPER_ADMIN", "ADMIN"]));
 
 app.post("/", async (c) => {
   const body = createTeamSchema.parse(await c.req.json());
