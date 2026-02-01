@@ -9,3 +9,4 @@ export * from "./admin/fixture.schema";
 export * from "./admin/lineup.schema";
 export * from "./admin/match.events.schema";
 export * from "./admin/match.stats.schema";
+export * from "./admin/match.status.schema";
