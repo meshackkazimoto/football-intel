@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "@football-intel/db/src/client";
-import { createRateLimiter } from "../../middleware/rate-limit";
+import { createRateLimiter } from "../../../middleware/rate-limit";
 
 const app = new Hono();
 

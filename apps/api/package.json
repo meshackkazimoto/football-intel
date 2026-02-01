@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run src/server.ts",
+    "dev": "bun --watch src/server.ts",
     "build": "echo \"build later\"",
     "typecheck": "tsc --noEmit"
   },

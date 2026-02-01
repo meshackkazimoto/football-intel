@@ -8,8 +8,8 @@ import {
   matchPredictions,
 } from "@football-intel/db/src/schema/core";
 import { eq, and, gte, lte, desc, asc, or, sql } from "drizzle-orm";
-import { createRateLimiter } from "../../middleware/rate-limit";
-import { cacheMiddleware } from "../../middleware/cache";
+import { createRateLimiter } from "../../../middleware/rate-limit";
+import { cacheMiddleware } from "../../../middleware/cache";
 import {
   paginationSchema,
   getPaginationOffset,

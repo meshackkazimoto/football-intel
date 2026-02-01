@@ -7,7 +7,7 @@ import {
   matches,
 } from "@football-intel/db/src/schema/core";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { createRateLimiter } from "../../middleware/rate-limit";
+import { createRateLimiter } from "../../../middleware/rate-limit";
 import { Env } from "src/env";
 
 const app = new Hono<Env>();

@@ -6,7 +6,7 @@ import {
   leagueStandings,
 } from "@football-intel/db/src/schema/core";
 import { eq, desc, asc } from "drizzle-orm";
-import { createRateLimiter } from "../../middleware/rate-limit";
+import { createRateLimiter } from "../../../middleware/rate-limit";
 import { Env } from "src/env";
 
 const app = new Hono<Env>();

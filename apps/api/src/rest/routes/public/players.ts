@@ -7,8 +7,8 @@ import {
   playerMatchRatings,
 } from "@football-intel/db/src/schema/core";
 import { eq, desc, and } from "drizzle-orm";
-import { createRateLimiter } from "../../middleware/rate-limit";
-import { cacheMiddleware } from "../../middleware/cache";
+import { createRateLimiter } from "../../../middleware/rate-limit";
+import { cacheMiddleware } from "../../../middleware/cache";
 import {
   paginationSchema,
   getPaginationOffset,

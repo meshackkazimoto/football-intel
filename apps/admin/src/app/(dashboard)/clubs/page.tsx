@@ -233,12 +233,12 @@ export default function ClubsPage() {
                 )}
 
                 <div className="mt-6 space-y-3">
-                  {/* {club.city && (
+                  {club.country && (
                     <div className="flex items-center gap-3 text-slate-500 text-sm">
                       <MapPin className="w-4 h-4 text-slate-300" />
-                      <span>{club.city}</span>
+                      <span>{club.country.name ?? "N/A"}</span>
                     </div>
-                  )} */}
+                  )}
                   {club.stadiumName && (
                     <div className="flex items-center gap-3 text-slate-500 text-sm">
                       <Trophy className="w-4 h-4 text-slate-300" />
