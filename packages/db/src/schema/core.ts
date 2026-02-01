@@ -154,6 +154,14 @@ export const matchEvents = pgTable(
   },
   (table) => ({
     matchEventIdx: index("match_event_idx").on(table.matchId),
+
+    uniqueEvent: unique("unique_match_event").on(
+      table.matchId,
+      table.teamId,
+      table.eventType,
+      table.minute,
+      table.playerId,
+    ),
   }),
 );
 

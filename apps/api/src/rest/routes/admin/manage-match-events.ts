@@ -7,7 +7,7 @@ import {
     teams,
     players,
 } from "@football-intel/db/src/schema/core";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { MatchEventSchema } from "@football-intel/validation";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
@@ -81,6 +81,27 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
         if (!related) {
             return c.json({ error: "Related player not found" }, 400);
         }
+    }
+
+    // 4. Deduplication check
+    const duplicate = await db.query.matchEvents.findFirst({
+        where: and(
+            eq(matchEvents.matchId, matchId),
+            eq(matchEvents.teamId, teamId),
+            eq(matchEvents.eventType, eventType),
+            eq(matchEvents.minute, minute),
+            playerId ? eq(matchEvents.playerId, playerId) : undefined,
+        ),
+    });
+
+    if (duplicate) {
+        return c.json(
+            {
+                error: "Duplicate match event detected",
+                code: "DUPLICATE_EVENT",
+            },
+            409,
+        );
     }
 
     // 4. Insert event
