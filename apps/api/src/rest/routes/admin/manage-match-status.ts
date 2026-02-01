@@ -7,6 +7,7 @@ import { MatchStatusSchema } from "@football-intel/validation";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
 import { requireRole } from "src/middleware/require-role";
+import { enforceMatchUnlocked } from "src/middleware/match-lock";
 
 const app = new Hono<{
     Variables: {
@@ -17,7 +18,7 @@ const app = new Hono<{
 
 app.use("*", requireRole(["ADMIN", "MODERATOR"]));
 
-app.post("/", async (c) => {
+app.post("/", enforceMatchUnlocked(), async (c) => {
     const body = await c.req.json();
     const parsed = MatchStatusSchema.safeParse(body);
 

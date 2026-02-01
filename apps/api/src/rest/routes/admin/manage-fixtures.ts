@@ -9,6 +9,7 @@ import {
 } from "@football-intel/validation";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
+import { enforceMatchUnlocked } from "src/middleware/match-lock";
 
 const app = new Hono<{
     Variables: {
@@ -69,7 +70,7 @@ app.post("/", async (c) => {
     return c.json(fixture, 201);
 });
 
-app.patch("/:id", async (c) => {
+app.patch("/:id", enforceMatchUnlocked(), async (c) => {
     const id = c.req.param("id");
     const body = updateFixtureSchema.parse(await c.req.json());
 
@@ -143,7 +144,7 @@ app.get("/", async (c) => {
     return c.json(fixtures);
 });
 
-app.delete("/:id", async (c) => {
+app.delete("/:id", enforceMatchUnlocked(),async (c) => {
     const id = c.req.param("id");
 
     const [deleted] = await db
