@@ -5,6 +5,7 @@ import { countries } from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
 import { createCountrySchema, updateCountrySchema } from "@football-intel/validation";
 import { auditLog } from "@football-intel/logger";
+import { requireRole } from "src/middleware/require-role";
 
 const app = new Hono<{
     Variables: {
@@ -12,6 +13,8 @@ const app = new Hono<{
         session: Session | null;
     };
 }>();
+
+app.use("*", requireRole(["ADMIN"]));
 
 app.get("/", async (c) => {
     const result = await db.query.countries.findMany({

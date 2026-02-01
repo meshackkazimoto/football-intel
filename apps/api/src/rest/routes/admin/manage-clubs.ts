@@ -8,6 +8,7 @@ import {
   updateClubSchema,
 } from "@football-intel/validation";
 import { auditLog } from "@football-intel/logger";
+import { requireRole } from "src/middleware/require-role";
 
 const app = new Hono<{
   Variables: {
@@ -15,6 +16,8 @@ const app = new Hono<{
     session: Session;
   };
 }>();
+
+app.use("*", requireRole(["ADMIN"]));
 
 app.get("/", async (c) => {
   const list = await db.query.clubs.findMany({

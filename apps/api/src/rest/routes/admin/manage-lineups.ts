@@ -5,6 +5,7 @@ import { matches, matchLineups, teams, players } from "@football-intel/db/src/sc
 import { eq, and } from "drizzle-orm";
 import { CreateLineupSchema } from "@football-intel/validation";
 import { logger } from "@football-intel/logger";
+import { requireRole } from "src/middleware/require-role";
 
 const app = new Hono<{
   Variables: {
@@ -12,6 +13,8 @@ const app = new Hono<{
     session: Session | null;
   };
 }>();
+
+app.use("*", requireRole(["ADMIN", "MODERATOR"]));
 
 app.post("/", async (c) => {
   const body = await c.req.json();

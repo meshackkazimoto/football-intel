@@ -8,6 +8,7 @@ import {
   updateSeasonSchema,
 } from "@football-intel/validation";
 import { logger } from "@football-intel/logger";
+import { requireRole } from "src/middleware/require-role";
 
 const app = new Hono<{
   Variables: {
@@ -15,6 +16,8 @@ const app = new Hono<{
     session: Session | null;
   };
 }>();
+
+app.use("*", requireRole(["ADMIN"]));
 
 app.post("/", async (c) => {
   const body = createSeasonSchema.parse(await c.req.json());
