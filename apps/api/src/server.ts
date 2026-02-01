@@ -19,6 +19,7 @@ import countryRoutes from "./rest/routes/countries";
 import clubRoutes from "./rest/routes/clubs";
 import authRoutes from "./rest/routes/auth";
 import { Env } from "./env";
+import { ZodError } from "zod";
 
 dotenv.config();
 
@@ -52,13 +53,19 @@ app.use("*", honoLogger());
 
 // Error handling
 app.onError((err, c) => {
+  if (err instanceof ZodError) {
+    return c.json(
+      {
+        error: "Validation error",
+        details: err.flatten(),
+      },
+      400,
+    );
+  }
+
   logger.error({ err, path: c.req.path }, "Unhandled error");
   return c.json(
-    {
-      error: "Internal Server Error",
-      message: err.message,
-      requestId: c.get("requestId"),
-    },
+    { error: "Internal Server Error" },
     500,
   );
 });

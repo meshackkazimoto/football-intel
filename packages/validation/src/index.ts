@@ -1,3 +1,6 @@
 export * from "./player";
 export * from "./match-event";
 export * from "./common";
+export * from "./admin/country.schema";
+export * from "./admin/club.schema";
+export * from "./admin/team.schema";

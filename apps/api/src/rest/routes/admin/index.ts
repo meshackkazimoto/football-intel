@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { type User, type Session } from "lucia";
-import { authMiddleware } from "../../middleware/auth";
+import { authMiddleware } from "../../../middleware/auth";
 import { db } from "@football-intel/db/src/client";
 import {
   ingestionLogs,
@@ -21,6 +21,7 @@ import {
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
 import { createRateLimiter } from "src/middleware/rate-limit";
+import manageCountries from "./manage-countries";
 
 const app = new Hono<{
   Variables: {
@@ -56,6 +57,8 @@ app.use("*", async (c, next) => {
   }
   return next();
 });
+
+app.route("/countries", manageCountries);
 
 app.post("/ingest", createRateLimiter(20, 60), async (c) => {
   const body = await c.req.json();
