@@ -22,6 +22,9 @@ import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
 import { createRateLimiter } from "src/middleware/rate-limit";
 import manageCountries from "./manage-countries";
+import manageTeams from "./manage-teams";
+import manageClubs from "./manage-clubs";
+import manageSeasons from "./manage-seasons";
 
 const app = new Hono<{
   Variables: {
@@ -59,6 +62,9 @@ app.use("*", async (c, next) => {
 });
 
 app.route("/countries", manageCountries);
+app.route("/teams", manageTeams);
+app.route("/clubs", manageClubs);
+app.route("/seasons", manageSeasons);
 
 app.post("/ingest", createRateLimiter(20, 60), async (c) => {
   const body = await c.req.json();

@@ -4,3 +4,4 @@ export * from "./common";
 export * from "./admin/country.schema";
 export * from "./admin/club.schema";
 export * from "./admin/team.schema";
+export * from "./admin/season.schema";
