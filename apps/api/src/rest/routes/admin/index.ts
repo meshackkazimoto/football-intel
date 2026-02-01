@@ -25,6 +25,8 @@ import manageCountries from "./manage-countries";
 import manageTeams from "./manage-teams";
 import manageClubs from "./manage-clubs";
 import manageSeasons from "./manage-seasons";
+import manageLineups from "./manage-lineups";
+import manageFixtures from "./manage-fixtures";
 
 const app = new Hono<{
   Variables: {
@@ -65,6 +67,8 @@ app.route("/countries", manageCountries);
 app.route("/teams", manageTeams);
 app.route("/clubs", manageClubs);
 app.route("/seasons", manageSeasons);
+app.route("/lineups", manageLineups);
+app.route("/fixtures", manageFixtures);
 
 app.post("/ingest", createRateLimiter(20, 60), async (c) => {
   const body = await c.req.json();
