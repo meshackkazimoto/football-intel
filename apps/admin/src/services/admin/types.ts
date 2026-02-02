@@ -29,7 +29,11 @@ export interface CreateIngestionInput {
   payload: any;
 }
 
-export interface VerifyIngestionInput {
-  score: number;
-  notes?: string;
-}
+export const verifyIngestionSchema = z.object({
+  score: z.number().min(0).max(1),
+  notes: z.string().optional(),
+});
+
+export interface VerifyIngestionInput extends z.infer<
+  typeof verifyIngestionSchema
+> {}

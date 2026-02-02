@@ -11,11 +11,14 @@ import {
   Edit,
   Trash2,
   Loader2,
-  Search,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createClubSchema, type CreateClubInput } from "@/services/clubs/types";
+import { SearchInput } from "@/components/ui/search";
+import { FormInput } from "@/components/ui/input";
+import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
+import { FormSection } from "@/components/ui/form-section";
 
 export default function ClubsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,120 +84,77 @@ export default function ClubsPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all"
-        >
+        <PrimaryButton onClick={() => setShowCreateForm(!showCreateForm)}>
           <Plus className="w-4 h-4" />
           Add New Club
-        </button>
+        </PrimaryButton>
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search clubs..."
-          className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-        />
-      </div>
+      <SearchInput
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search clubs..."
+      />
 
       {/* Create Club Form */}
       {showCreateForm && (
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6">
-          <h2 className="text-lg font-bold text-slate-100 mb-4">
-            Register New Club
-          </h2>
-
+        <FormSection title="Register New Club">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="grid grid-cols-2 gap-4"
           >
             <div className="col-span-2">
-              <label className="block text-sm font-bold text-slate-300 mb-2">
-                Club Name *
-              </label>
-              <input
+              <FormInput
+                label="Club Name *"
                 {...register("name")}
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-100"
-              />
-              {errors.name && (
-                <p className="text-xs text-rose-500 mt-1">
-                  {errors.name.message}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">
-                Slug
-              </label>
-              <input
-                {...register("slug")}
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-100"
+                error={errors.name}
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">
-                Founded Year
-              </label>
-              <input
-                type="number"
-                {...register("foundedYear", { valueAsNumber: true })}
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-100"
-              />
-            </div>
+            <FormInput label="Slug" {...register("slug")} error={errors.slug} />
 
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">
-                Stadium Name
-              </label>
-              <input
-                {...register("stadiumName")}
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-100"
-              />
-            </div>
+            <FormInput
+              label="Founded Year"
+              type="number"
+              {...register("foundedYear", { valueAsNumber: true })}
+              error={errors.foundedYear}
+            />
 
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">
-                Stadium Capacity
-              </label>
-              <input
-                type="number"
-                {...register("stadiumCapacity", { valueAsNumber: true })}
-                className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-100"
-              />
-            </div>
+            <FormInput
+              label="Stadium Name"
+              {...register("stadiumName")}
+              error={errors.stadiumName}
+            />
+
+            <FormInput
+              label="Stadium Capacity"
+              type="number"
+              {...register("stadiumCapacity", { valueAsNumber: true })}
+              error={errors.stadiumCapacity}
+            />
 
             <div className="col-span-2 flex gap-3">
-              <button
-                type="submit"
-                disabled={createMutation.isPending}
-                className="btn-primary"
-              >
-                {createMutation.isPending && (
+              <PrimaryButton type="submit" loading={createMutation.isPending}>
+                {createMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Register Club"
                 )}
-                Register Club
-              </button>
+              </PrimaryButton>
 
-              <button
+              <SecondaryButton
                 type="button"
                 onClick={() => {
                   setShowCreateForm(false);
                   reset();
                 }}
-                className="btn-secondary"
               >
                 Cancel
-              </button>
+              </SecondaryButton>
             </div>
           </form>
-        </div>
+        </FormSection>
       )}
 
       {/* Clubs Grid */}

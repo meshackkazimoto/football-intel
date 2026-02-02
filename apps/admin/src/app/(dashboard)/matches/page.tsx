@@ -3,21 +3,17 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { matchesService } from "@/services/matches/matches.service";
-import {
-  Plus,
-  Calendar,
-  MapPin,
-  Edit,
-  Trash2,
-  Loader2,
-  Filter,
-} from "lucide-react";
+import { Plus, Calendar, MapPin, Edit, Trash2, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   createMatchSchema,
   type CreateMatchInput,
 } from "@/services/matches/types";
+import { FormInput } from "@/components/ui/input";
+import { FormSelect } from "@/components/ui/select";
+import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
+import { FormSection } from "@/components/ui/form-section";
 
 export default function MatchesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -95,134 +91,81 @@ export default function MatchesPage() {
             <option value="finished">Finished</option>
             <option value="postponed">Postponed</option>
           </select>
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-md"
-          >
+          <PrimaryButton onClick={() => setShowCreateForm(!showCreateForm)}>
             <Plus className="w-4 h-4" />
             Add Match
-          </button>
+          </PrimaryButton>
         </div>
       </div>
 
       {showCreateForm && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">
-            Create New Match
-          </h2>
+        <FormSection title="Create New Match">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="grid grid-cols-2 gap-4"
           >
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Season ID
-              </label>
-              <input
-                {...register("seasonId")}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="UUID of season"
-              />
-              {errors.seasonId && (
-                <p className="text-xs text-rose-500 mt-1">
-                  {errors.seasonId.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Match Date
-              </label>
-              <input
-                type="datetime-local"
-                {...register("matchDate")}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              />
-              {errors.matchDate && (
-                <p className="text-xs text-rose-500 mt-1">
-                  {errors.matchDate.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Home Team ID
-              </label>
-              <input
-                {...register("homeTeamId")}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="UUID of home team"
-              />
-              {errors.homeTeamId && (
-                <p className="text-xs text-rose-500 mt-1">
-                  {errors.homeTeamId.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Away Team ID
-              </label>
-              <input
-                {...register("awayTeamId")}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="UUID of away team"
-              />
-              {errors.awayTeamId && (
-                <p className="text-xs text-rose-500 mt-1">
-                  {errors.awayTeamId.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Venue
-              </label>
-              <input
-                {...register("venue")}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="Stadium name"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">
-                Status
-              </label>
-              <select
-                {...register("status")}
-                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              >
-                <option value="scheduled">Scheduled</option>
-                <option value="live">Live</option>
-                <option value="finished">Finished</option>
-                <option value="postponed">Postponed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
+            <FormInput
+              label="Season ID"
+              {...register("seasonId")}
+              error={errors.seasonId}
+              placeholder="UUID of season"
+            />
+            <FormInput
+              label="Match Date"
+              type="datetime-local"
+              {...register("matchDate")}
+              error={errors.matchDate}
+            />
+            <FormInput
+              label="Home Team ID"
+              {...register("homeTeamId")}
+              error={errors.homeTeamId}
+              placeholder="UUID of home team"
+            />
+            <FormInput
+              label="Away Team ID"
+              {...register("awayTeamId")}
+              error={errors.awayTeamId}
+              placeholder="UUID of away team"
+            />
+            <FormInput
+              label="Venue"
+              {...register("venue")}
+              placeholder="Stadium name"
+            />
+
+            <FormSelect
+              label="Status"
+              {...register("status")}
+              options={[
+                { label: "Scheduled", value: "scheduled" },
+                { label: "Live", value: "live" },
+                { label: "Finished", value: "finished" },
+                { label: "Postponed", value: "postponed" },
+                { label: "Cancelled", value: "cancelled" },
+              ]}
+            />
+
             <div className="col-span-2 flex gap-3">
-              <button
-                type="submit"
-                disabled={createMutation.isPending}
-                className="px-6 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {createMutation.isPending && (
+              <PrimaryButton type="submit" loading={createMutation.isPending}>
+                {createMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Create Match"
                 )}
-                Create Match
-              </button>
-              <button
+              </PrimaryButton>
+              <SecondaryButton
                 type="button"
                 onClick={() => {
                   setShowCreateForm(false);
                   reset();
                 }}
-                className="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-colors"
               >
                 Cancel
-              </button>
+              </SecondaryButton>
             </div>
           </form>
-        </div>
+        </FormSection>
       )}
 
       {isLoading ? (
