@@ -1,16 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { playersService } from "@/services/players/players.service";
-import { Plus, Search, Edit, Trash2, Loader2, User } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Loader2,
+  User,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  createPlayerSchema,
-  type CreatePlayerInput,
+import type {
+  CreatePlayerInput,
+  Player,
 } from "@/services/players/types";
-import { logger } from "@football-intel/logger";
+import { createPlayerSchema } from "@/services/players/validation";
 
 export default function PlayersPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -20,13 +27,10 @@ export default function PlayersPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["players", searchQuery],
     queryFn: () =>
-      playersService.getPlayers(searchQuery ? { search: searchQuery } : {}),
+      playersService.getPlayers(
+        searchQuery ? { search: searchQuery } : {},
+      ),
   });
-
-  useEffect(() => {
-    if (data) logger.info(`players: ${JSON.stringify(data)}`);
-    if (error) logger.error(`Failed to fetch players: ${error}`);
-  }, [data, error]);
 
   const {
     register,
@@ -53,8 +57,8 @@ export default function PlayersPage() {
     },
   });
 
-  const onSubmit = (data: CreatePlayerInput) => {
-    createMutation.mutate(data);
+  const onSubmit = (formData: CreatePlayerInput) => {
+    createMutation.mutate(formData);
   };
 
   return (
@@ -87,15 +91,7 @@ export default function PlayersPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search players by name..."
-          className="
-            w-full pl-12 pr-4 py-3
-            bg-slate-800
-            border border-slate-700
-            rounded-xl
-            text-slate-100
-            focus:outline-none
-            focus:ring-2 focus:ring-emerald-500/20
-          "
+          className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
         />
       </div>
 
@@ -143,25 +139,33 @@ export default function PlayersPage() {
               <label className="block text-sm font-bold text-slate-300 mb-2">
                 Date of Birth
               </label>
-              <input type="date" {...register("dateOfBirth")} className="input-dark" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">
-                Position
-              </label>
-              <input {...register("position")} className="input-dark" />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">
-                Jersey Number
-              </label>
               <input
-                type="number"
-                {...register("jerseyNumber", { valueAsNumber: true })}
+                type="date"
+                {...register("dateOfBirth")}
                 className="input-dark"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-300 mb-2">
+                Nationality ID
+              </label>
+              <input
+                {...register("nationalityId")}
+                className="input-dark"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-300 mb-2">
+                Preferred Foot
+              </label>
+              <select {...register("preferredFoot")} className="input-dark">
+                <option value="">—</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+                <option value="both">Both</option>
+              </select>
             </div>
 
             <div>
@@ -171,17 +175,6 @@ export default function PlayersPage() {
               <input
                 type="number"
                 {...register("height", { valueAsNumber: true })}
-                className="input-dark"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-300 mb-2">
-                Weight (kg)
-              </label>
-              <input
-                type="number"
-                {...register("weight", { valueAsNumber: true })}
                 className="input-dark"
               />
             </div>
@@ -230,50 +223,60 @@ export default function PlayersPage() {
             <table className="w-full">
               <thead className="bg-slate-800 border-b border-slate-700">
                 <tr>
-                  {["Player", "Club", "Position", "Nationality", "Jersey", "Actions"].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest"
-                      >
-                        {h}
-                      </th>
-                    ),
-                  )}
+                  {[
+                    "Player",
+                    "Club",
+                    "Position",
+                    "Nationality",
+                    "Jersey",
+                    "Actions",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest"
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-800">
-                {data?.data?.map((player) => (
+                {data?.data.map((player: Player) => (
                   <tr
                     key={player.id}
                     className="hover:bg-slate-800/60 transition-colors"
                   >
                     <td className="px-6 py-4">
-                      <p className="font-bold text-slate-100">
-                        {player.fullName}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {player.firstName} {player.lastName}
-                      </p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                          <User className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-100">
+                            {player.fullName}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {player.firstName} {player.lastName}
+                          </p>
+                        </div>
+                      </div>
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-300">
-                      {player.clubName || "-"}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-bold">
-                        {player.position || "N/A"}
-                      </span>
+                      {"—"}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-400">
-                      {player.nationality || "-"}
+                      {"—"}
                     </td>
 
-                    <td className="px-6 py-4 font-bold text-slate-100">
-                      {player.jerseyNumber ? `#${player.jerseyNumber}` : "-"}
+                    <td className="px-6 py-4 text-sm text-slate-400">
+                      {player.nationality?.name ?? "-"}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-slate-400">
+                      {"—"}
                     </td>
 
                     <td className="px-6 py-4 text-right">

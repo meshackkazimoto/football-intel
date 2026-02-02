@@ -12,6 +12,7 @@ import {
   unique,
   index,
 } from "drizzle-orm/pg-core";
+import { ingestionLogs, verificationRecords } from "./ingestion";
 
 export const countries = pgTable("countries", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -624,3 +625,20 @@ export const transfersRelations = relations(transfers, ({ one }) => ({
     references: [seasons.id],
   }),
 }));
+
+export const ingestionLogsRelations = relations(
+  ingestionLogs,
+  ({ many }) => ({
+    verifications: many(verificationRecords),
+  }),
+);
+
+export const verificationRecordsRelations = relations(
+  verificationRecords,
+  ({ one }) => ({
+    ingestion: one(ingestionLogs, {
+      fields: [verificationRecords.ingestionId],
+      references: [ingestionLogs.id],
+    }),
+  }),
+);

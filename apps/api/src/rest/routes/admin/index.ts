@@ -396,4 +396,22 @@ app.post("/verify/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+app.get("/ingestion-logs", async (c) => {
+  const status = c.req.query("status");
+  const limit = Number(c.req.query("limit") ?? 20);
+
+  const logs = await db.query.ingestionLogs.findMany({
+    where: status
+      ? eq(ingestionLogs.status, status)
+      : undefined,
+    orderBy: (l, { desc }) => [desc(l.createdAt)],
+    limit,
+  });
+
+  return c.json({
+    data: logs,
+    total: logs.length,
+  });
+});
+
 export default app;

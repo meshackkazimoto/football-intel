@@ -1,4 +1,3 @@
-import { logger } from "@football-intel/logger";
 import { apiClient } from "../api-client";
 import {
   Player,
@@ -10,26 +9,27 @@ import {
 
 export const playersService = {
   getPlayers: async (filters?: PlayerFilters): Promise<PlayersResponse> => {
-    const { data } = await apiClient.get<PlayersResponse>("/players", {
-      params: filters,
-    });
-    
-    if (!data) {
-      logger.error("Players API returned undefined data");
-      throw new Error("Failed to fetch players: No data returned");
-    }
-    
-    logger.info(`Fetched ${data.players?.length || 0} players`);
+    const { data } = await apiClient.get<PlayersResponse>(
+      "/admin/players",
+      { params: filters },
+    );
     return data;
   },
 
   getPlayerById: async (id: string): Promise<Player> => {
-    const { data } = await apiClient.get<Player>(`/players/${id}`);
+    const { data } = await apiClient.get<Player>(
+      `/admin/players/${id}`,
+    );
     return data;
   },
 
-  createPlayer: async (input: CreatePlayerInput): Promise<Player> => {
-    const { data } = await apiClient.post<Player>("/players", input);
+  createPlayer: async (
+    input: CreatePlayerInput,
+  ): Promise<Player> => {
+    const { data } = await apiClient.post<Player>(
+      "/admin/players",
+      input,
+    );
     return data;
   },
 
@@ -37,11 +37,14 @@ export const playersService = {
     id: string,
     input: UpdatePlayerInput,
   ): Promise<Player> => {
-    const { data } = await apiClient.patch<Player>(`/players/${id}`, input);
+    const { data } = await apiClient.patch<Player>(
+      `/admin/players/${id}`,
+      input,
+    );
     return data;
   },
 
   deletePlayer: async (id: string): Promise<void> => {
-    await apiClient.delete(`/players/${id}`);
+    await apiClient.delete(`/admin/players/${id}`);
   },
 };
