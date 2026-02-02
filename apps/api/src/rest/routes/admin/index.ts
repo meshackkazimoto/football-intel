@@ -35,6 +35,7 @@ import manageMatchStatus from "./manage-match-status";
 import managePlayers from "./manage-players";
 import manageStadiums from "./manage-stadiums";
 import managePlayerContracts from "./manage-player-contracts";
+import manageLeagues from "./manage-leagues";
 
 const app = new Hono<{
   Variables: {
@@ -74,6 +75,7 @@ app.route("/countries", manageCountries);
 app.route("/teams", manageTeams);
 app.route("/clubs", manageClubs);
 app.route("/seasons", manageSeasons);
+app.route("/leagues", manageLeagues);
 app.route("/lineups", manageLineups);
 app.route("/fixtures", manageFixtures);
 app.route("/match-events", manageMatchEvents);

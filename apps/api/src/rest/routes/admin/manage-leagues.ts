@@ -83,7 +83,7 @@ app.patch("/:id", requireRole(["SUPER_ADMIN", "ADMIN"]), async (c) => {
     return c.json(updated);
 });
 
-app.get("/", requireRole(["MODERATOR"]), async (c) => {
+app.get("/", requireRole(["SUPER_ADMIN", "ADMIN","MODERATOR"]), async (c) => {
     const countryId = c.req.query("countryId");
 
     const data = await db.query.leagues.findMany({
