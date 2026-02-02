@@ -11,3 +11,5 @@ export * from "./admin/match.events.schema";
 export * from "./admin/match.stats.schema";
 export * from "./admin/match.status.schema";
 export * from "./admin/leagues.schema";
+export * from "./admin/player.schema";
+export * from "./admin/player.contract.schema";

@@ -30,8 +30,10 @@ import manageFixtures from "./manage-fixtures";
 import manageMatchEvents from "./manage-match-events";
 import manageMatchStats from "./manage-match-stats";
 import manageMatchStatus from "./manage-match-status";
+import managePlayers from "./manage-players";
 import { requireRole } from "src/middleware/require-role";
 import { createRoleRateLimiter } from "src/middleware/role-rate-limit";
+import managePlayerContracts from "./manage-player-contracts";
 
 const app = new Hono<{
   Variables: {
@@ -76,6 +78,8 @@ app.route("/fixtures", manageFixtures);
 app.route("/match-events", manageMatchEvents);
 app.route("/match-stats", manageMatchStats);
 app.route("/match-status", manageMatchStatus);
+app.route("/players", managePlayers);
+app.route("/player-contracts", managePlayerContracts);
 
 app.post("/ingest", createRateLimiter(20, 60), async (c) => {
   const body = await c.req.json();
