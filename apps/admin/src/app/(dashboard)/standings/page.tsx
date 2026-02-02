@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { standingsService } from "@/services/standings/standings.service";
 import { seasonsService } from "@/services/seasons/seasons.service";
@@ -13,9 +13,8 @@ import {
   Trash2,
   Save,
   X,
-  TrendingUp,
 } from "lucide-react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   createStandingSchema,
@@ -78,11 +77,14 @@ export default function StandingsPage() {
     register: registerCreate,
     handleSubmit: handleSubmitCreate,
     reset: resetCreate,
-    control: controlCreate,
+    setValue: setValueCreate,
     formState: { errors: errorsCreate },
   } = useForm<CreateStandingInput>({
     resolver: zodResolver(createStandingSchema),
     defaultValues: {
+      seasonId: "",
+      teamId: "",
+      position: 1,
       played: 0,
       wins: 0,
       draws: 0,
@@ -91,8 +93,21 @@ export default function StandingsPage() {
       goalsAgainst: 0,
       goalDifference: 0,
       points: 0,
+      pointsDeduction: 0,
     },
   });
+
+  useEffect(() => {
+    registerCreate("seasonId");
+  }, [registerCreate]);
+
+  useEffect(() => {
+    if (!selectedSeasonId) return;
+    setValueCreate("seasonId", selectedSeasonId, {
+      shouldValidate: true,
+      shouldDirty: false,
+    });
+  }, [selectedSeasonId, setValueCreate]);
 
   const createMutation = useMutation({
     mutationFn: standingsService.createStanding,
@@ -102,6 +117,10 @@ export default function StandingsPage() {
       resetCreate();
     },
   });
+
+  const createErrorMessage =
+    (createMutation.error as any)?.response?.data?.error ??
+    (createMutation.error as any)?.message;
 
   const onCreateSubmit = (data: CreateStandingInput) => {
     createMutation.mutate(data);
@@ -143,7 +162,25 @@ export default function StandingsPage() {
           </select>
 
           <PrimaryButton
-            onClick={() => setShowCreateForm(!showCreateForm)}
+            onClick={() => {
+              setShowCreateForm((prev) => !prev);
+              if (!showCreateForm && selectedSeasonId) {
+                resetCreate({
+                  seasonId: selectedSeasonId,
+                  teamId: "",
+                  position: 1,
+                  played: 0,
+                  wins: 0,
+                  draws: 0,
+                  losses: 0,
+                  goalsFor: 0,
+                  goalsAgainst: 0,
+                  goalDifference: 0,
+                  points: 0,
+                  pointsDeduction: 0,
+                });
+              }
+            }}
             disabled={!selectedSeasonId}
           >
             <Plus className="w-4 h-4" />
@@ -155,6 +192,11 @@ export default function StandingsPage() {
       {/* Create Form */}
       {showCreateForm && (
         <FormSection title="Add Team to Standings">
+          {createMutation.isError && createErrorMessage && (
+            <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+              {createErrorMessage}
+            </div>
+          )}
           <form
             onSubmit={handleSubmitCreate(onCreateSubmit)}
             className="grid grid-cols-2 md:grid-cols-4 gap-4"
@@ -168,11 +210,6 @@ export default function StandingsPage() {
                   label: t.name,
                   value: t.id,
                 }))}
-              />
-              <input
-                type="hidden"
-                value={selectedSeasonId}
-                {...registerCreate("seasonId")}
               />
             </div>
 
