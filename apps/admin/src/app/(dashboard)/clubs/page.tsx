@@ -207,14 +207,7 @@ export default function ClubsPage() {
           {data?.map((club, index) => (
             <div
               key={club.id}
-              className="
-                bg-slate-900
-                border border-slate-700
-                rounded-2xl
-                overflow-hidden
-                hover:border-emerald-500/30
-                transition-all
-              "
+              className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden hover:border-emerald-500/30 transition-all"
             >
               <div className={`h-2 bg-gradient-to-r ${getClubColor(index)}`} />
 
@@ -273,18 +266,7 @@ export default function ClubsPage() {
                   )}
                 </div>
 
-                <button
-                  className="
-                    w-full mt-6 py-2
-                    bg-slate-800
-                    text-slate-300
-                    font-bold text-xs uppercase tracking-widest
-                    rounded-xl
-                    hover:bg-emerald-500/10
-                    hover:text-emerald-400
-                    transition-all
-                  "
-                >
+                <button className="w-full mt-6 py-2 bg-slate-800 text-slate-300 font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-emerald-500/10 hover:text-emerald-400 transition-all">
                   View Squad
                 </button>
               </div>
