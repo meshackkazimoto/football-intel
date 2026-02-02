@@ -4,7 +4,12 @@ export const stadiumSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
   city: z.string().nullable(),
-  countryId: z.string().uuid().nullable(),
+  country: z.object({
+    // id: z.string().uuid(),
+    name: z.string(),
+    code: z.string().nullable(),
+    // flagUrl: z.string().nullable(),
+  }).nullable(),
   capacity: z.number().nullable(),
   latitude: z.string().nullable(),
   longitude: z.string().nullable(),

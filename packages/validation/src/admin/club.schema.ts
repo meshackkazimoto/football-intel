@@ -14,6 +14,7 @@ const clubBaseSchema = {
     .min(1800)
     .max(new Date().getFullYear())
     .optional(),
+  stadiumId: z.string().uuid().optional(),
   stadiumName: z.string().max(200).optional(),
   stadiumCapacity: z.number().int().positive().optional(),
   isActive: z.boolean().optional(),

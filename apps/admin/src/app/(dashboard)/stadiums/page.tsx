@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { stadiumsService } from "@/services/stadiums/stadiums.service";
+import { countriesService } from "@/services/countries/countries.service";
 import { Plus, Edit, Trash2, Loader2, MapPin } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { CreateStadiumInput, Stadium } from "@/services/stadiums/types";
+import type { Country } from "@/services/countries/types";
 import { createStadiumSchema } from "@/services/stadiums/validation";
 import { SearchInput } from "@/components/ui/search";
 import { FormInput } from "@/components/ui/input";
+import { FormSelect } from "@/components/ui/select";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-section";
 import {
@@ -26,9 +29,18 @@ export default function StadiumsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data, isLoading, error } = useQuery({
+  const {
+    data: stadiumsData,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["stadiums", searchQuery],
     queryFn: () => stadiumsService.getStadiums(),
+  });
+
+  const { data: countries = [] } = useQuery({
+    queryKey: ["countries"],
+    queryFn: () => countriesService.getCountries(),
   });
 
   const {
@@ -101,11 +113,19 @@ export default function StadiumsPage() {
               />
             </div>
 
-            <FormInput label="City" {...register("city")} error={errors.city} />
-
             <FormInput
-              label="Country ID"
+              label="City"
+              {...register("city")}
+              error={errors.city}
+            />
+
+            <FormSelect
+              label="Country"
               {...register("countryId")}
+              options={countries.map((c: Country) => ({
+                label: `${c.name} (${c.code})`,
+                value: c.id,
+              }))}
               error={errors.countryId}
             />
 
@@ -176,7 +196,7 @@ export default function StadiumsPage() {
             </TableHeader>
 
             <TableBody>
-              {data?.data.length === 0 ? (
+              {stadiumsData?.data.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={5}
@@ -186,7 +206,7 @@ export default function StadiumsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data?.data.map((stadium: Stadium) => (
+                stadiumsData?.data.map((stadium: Stadium) => (
                   <TableRow
                     key={stadium.id}
                     className="hover:bg-slate-800/60 transition-colors"

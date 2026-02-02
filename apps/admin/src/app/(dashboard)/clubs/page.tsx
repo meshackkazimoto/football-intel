@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { clubsService } from "@/services/clubs/clubs.service";
+import { countriesService } from "@/services/countries/countries.service";
+import { stadiumsService } from "@/services/stadiums/stadiums.service";
 import {
   Plus,
   Trophy,
@@ -17,17 +19,37 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createClubSchema, type CreateClubInput } from "@/services/clubs/types";
 import { SearchInput } from "@/components/ui/search";
 import { FormInput } from "@/components/ui/input";
+import { FormSelect } from "@/components/ui/select";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-section";
+
+const COLOR_MAP: Record<string, string> = {
+  red: "from-red-600 via-red-500 to-red-600",
+  blue: "from-blue-600 via-blue-500 to-blue-600",
+  yellow: "from-yellow-500 via-yellow-400 to-yellow-500",
+  green: "from-green-600 via-green-500 to-green-600",
+  white: "from-slate-300 via-white to-slate-300",
+  black: "from-slate-900 via-slate-800 to-slate-900",
+};
 
 export default function ClubsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data: clubs, isLoading } = useQuery({
     queryKey: ["clubs", searchQuery],
     queryFn: () => clubsService.getClubs(),
+  });
+
+  const { data: countries } = useQuery({
+    queryKey: ["countries"],
+    queryFn: () => countriesService.getCountries(),
+  });
+
+  const { data: stadiums } = useQuery({
+    queryKey: ["stadiums"],
+    queryFn: () => stadiumsService.getStadiums(),
   });
 
   const {
@@ -59,16 +81,20 @@ export default function ClubsPage() {
     createMutation.mutate(data);
   };
 
-  const getClubColor = (index: number) => {
-    const colors = [
-      "from-rose-500 to-rose-600",
-      "from-amber-400 to-amber-500",
-      "from-blue-500 to-blue-600",
-      "from-emerald-500 to-emerald-600",
-      "from-purple-500 to-purple-600",
-      "from-pink-500 to-pink-600",
-    ];
-    return colors[index % colors.length];
+  const normalizeColor = (color?: string) =>
+    color
+      ?.toLowerCase()
+      .trim()
+      .replace(/\s+/g, "");
+
+  const getClubGradient = (club: any) => {
+    const primary = normalizeColor(club.metadata?.colors?.primary);
+
+    if (primary && COLOR_MAP[primary]) {
+      return COLOR_MAP[primary];
+    }
+
+    return "from-emerald-500 to-emerald-600";
   };
 
   return (
@@ -97,13 +123,13 @@ export default function ClubsPage() {
         placeholder="Search clubs..."
       />
 
-      {/* Create Club Form */}
       {showCreateForm && (
         <FormSection title="Register New Club">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="grid grid-cols-2 gap-4"
           >
+            {/* Basic Info */}
             <div className="col-span-2">
               <FormInput
                 label="Club Name *"
@@ -112,7 +138,11 @@ export default function ClubsPage() {
               />
             </div>
 
-            <FormInput label="Slug" {...register("slug")} error={errors.slug} />
+            <FormInput
+              label="Slug *"
+              {...register("slug")}
+              error={errors.slug}
+            />
 
             <FormInput
               label="Founded Year"
@@ -121,19 +151,54 @@ export default function ClubsPage() {
               error={errors.foundedYear}
             />
 
+            {/* Country */}
+            <FormSelect
+              label="Country"
+              {...register("countryId")}
+              error={errors.countryId}
+              options={
+                countries?.map((c) => ({
+                  label: `${c.name} (${c.code})`,
+                  value: c.id,
+                })) ?? []
+              }
+            />
+
+            {/* Stadium */}
+            <FormSelect
+              label="Stadium"
+              {...register("stadiumId")}
+              error={errors.stadiumId}
+              options={
+                stadiums?.data.map((s) => ({
+                  label: s.name,
+                  value: s.id,
+                })) ?? []
+              }
+            />
+
+            {/* Metadata */}
             <FormInput
-              label="Stadium Name"
-              {...register("stadiumName")}
-              error={errors.stadiumName}
+              label="Nickname"
+              {...register("metadata.nickname")}
+              error={errors.metadata?.nickname}
             />
 
             <FormInput
-              label="Stadium Capacity"
-              type="number"
-              {...register("stadiumCapacity", { valueAsNumber: true })}
-              error={errors.stadiumCapacity}
+              label="Primary Color"
+              placeholder="e.g. Yellow"
+              {...register("metadata.colors.primary")}
+              error={errors.metadata?.colors?.primary}
             />
 
+            <FormInput
+              label="Secondary Color"
+              placeholder="e.g. Green"
+              {...register("metadata.colors.secondary")}
+              error={errors.metadata?.colors?.secondary}
+            />
+
+            {/* Actions */}
             <div className="col-span-2 flex gap-3">
               <PrimaryButton type="submit" loading={createMutation.isPending}>
                 {createMutation.isPending ? (
@@ -157,24 +222,32 @@ export default function ClubsPage() {
         </FormSection>
       )}
 
-      {/* Clubs Grid */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
         </div>
-      ) : data?.length === 0 ? (
+      ) : clubs?.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <p className="text-lg font-bold">No clubs found.</p>
           <p className="text-sm">Get started by adding a new club.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {data?.map((club, index) => (
-            <div
+          {clubs?.map((club, index) => {
+            console.log(
+  club.name,
+  `"${club.metadata?.colors?.primary}"`,
+  `"${club.metadata?.colors?.primary?.toLowerCase()}"`,
+);
+            return (
+              <div
               key={club.id}
               className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden hover:border-emerald-500/30 transition-all"
             >
-              <div className={`h-2 bg-gradient-to-r ${getClubColor(index)}`} />
+              <div
+                className={`h-2 bg-gradient-to-r ${getClubGradient(club)}`}
+                title={club.metadata?.colors?.primary}
+              />
 
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -200,9 +273,9 @@ export default function ClubsPage() {
                   {club.name}
                 </h3>
 
-                {club.foundedYear && (
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">
-                    EST. {club.foundedYear}
+                {club.metadata?.nickname && (
+                  <p className="text-xs text-emerald-400 font-bold uppercase mt-1">
+                    {club.metadata.nickname}
                   </p>
                 )}
 
@@ -210,22 +283,25 @@ export default function ClubsPage() {
                   {club.country && (
                     <div className="flex items-center gap-3 text-slate-400 text-sm">
                       <MapPin className="w-4 h-4" />
-                      <span>{club.country.name ?? "N/A"}</span>
+                      <span>{club.country.name}</span>
                     </div>
                   )}
 
-                  {club.stadiumName && (
+                  {(club.stadium?.name || club.stadiumName) && (
                     <div className="flex items-center gap-3 text-slate-400 text-sm">
                       <Trophy className="w-4 h-4" />
-                      <span>{club.stadiumName}</span>
+                      <span>{club.stadium?.name ?? club.stadiumName}</span>
                     </div>
                   )}
 
-                  {club.stadiumCapacity && (
+                  {(club.stadium?.capacity || club.stadiumCapacity) && (
                     <div className="flex items-center gap-3 text-slate-400 text-sm">
                       <Calendar className="w-4 h-4" />
                       <span>
-                        {club.stadiumCapacity.toLocaleString()} capacity
+                        {(
+                          club.stadium?.capacity ?? club.stadiumCapacity
+                        )?.toLocaleString()}{" "}
+                        capacity
                       </span>
                     </div>
                   )}
@@ -236,7 +312,8 @@ export default function ClubsPage() {
                 </button>
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

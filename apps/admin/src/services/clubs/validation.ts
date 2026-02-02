@@ -9,9 +9,19 @@ export const createClubSchema = z.object({
     .min(1800)
     .max(new Date().getFullYear())
     .optional(),
-  stadiumName: z.string().optional(),
-  stadiumCapacity: z.number().int().positive().optional(),
   countryId: z.string().uuid().optional(),
+  stadiumId: z.string().uuid().optional(),
+  metadata: z
+    .object({
+      nickname: z.string().optional(),
+      colors: z
+        .object({
+          primary: z.string(),
+          secondary: z.string(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 export const updateClubSchema = createClubSchema.partial();

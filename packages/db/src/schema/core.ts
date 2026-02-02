@@ -392,7 +392,7 @@ export const moderatorActions = pgTable("moderator_actions", {
   entityType: varchar("entity_type", { length: 50 }).notNull(),
   entityId: uuid("entity_id"),
 
-  action: varchar("action", { length: 50 }).notNull(),  // CREATE_EVENT | UPDATE_STATS | CHANGE_STATUS | CREATE_FIXTURE
+  action: varchar("action", { length: 50 }).notNull(), // CREATE_EVENT | UPDATE_STATS | CHANGE_STATUS | CREATE_FIXTURE
 
   matchId: uuid("match_id"),
   seasonId: uuid("season_id"),
@@ -436,6 +436,10 @@ export const clubsRelations = relations(clubs, ({ one, many }) => ({
   country: one(countries, {
     fields: [clubs.countryId],
     references: [countries.id],
+  }),
+  stadium: one(stadiums, {
+    fields: [clubs.stadiumId],
+    references: [stadiums.id],
   }),
   teams: many(teams),
 }));
@@ -638,12 +642,9 @@ export const transfersRelations = relations(transfers, ({ one }) => ({
   }),
 }));
 
-export const ingestionLogsRelations = relations(
-  ingestionLogs,
-  ({ many }) => ({
-    verifications: many(verificationRecords),
-  }),
-);
+export const ingestionLogsRelations = relations(ingestionLogs, ({ many }) => ({
+  verifications: many(verificationRecords),
+}));
 
 export const verificationRecordsRelations = relations(
   verificationRecords,

@@ -3,10 +3,7 @@ import { Session, User } from "lucia";
 import { db } from "@football-intel/db/src/client";
 import { clubs, countries } from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
-import {
-  createClubSchema,
-  updateClubSchema,
-} from "@football-intel/validation";
+import { createClubSchema, updateClubSchema } from "@football-intel/validation";
 import { auditLog } from "@football-intel/logger";
 import { requireRole } from "src/middleware/require-role";
 
@@ -23,6 +20,7 @@ app.get("/", async (c) => {
   const list = await db.query.clubs.findMany({
     with: {
       country: true,
+      stadium: true,
     },
     orderBy: (clubs, { asc }) => [asc(clubs.name)],
   });
