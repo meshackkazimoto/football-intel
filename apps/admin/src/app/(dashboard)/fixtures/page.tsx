@@ -1,30 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fixturesService } from "@/services/fixtures/fixtures.service";
-import { Plus, Calendar, MapPin, Edit, Trash2, Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { seasonsService } from "@/services/seasons/seasons.service";
+import { teamsService } from "@/services/teams/teams.service";
+import { stadiumsService } from "@/services/stadiums/stadiums.service";
+import {
+  Plus,
+  Calendar,
+  MapPin,
+  Edit,
+  Trash2,
+  Loader2,
+} from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createFixtureSchema } from "@/services/fixtures/validation";
+import {
+  createFixtureSchema,
+} from "@/services/fixtures/validation";
 import type {
   CreateFixtureInput,
   Fixture,
   FixtureStatus,
 } from "@/services/fixtures/types";
 import { FormInput } from "@/components/ui/input";
+import { FormSelect } from "@/components/ui/select";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-section";
 
 export default function FixturesPage() {
-  const [statusFilter, setStatusFilter] = useState<"all" | FixtureStatus>(
-    "all",
-  );
-
+  const [statusFilter, setStatusFilter] =
+    useState<"all" | FixtureStatus>("all");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  /* =======================
+     Queries
+  ======================= */
+
+  const { data: fixtures, isLoading } = useQuery({
     queryKey: ["fixtures", statusFilter],
     queryFn: () =>
       fixturesService.getFixtures(
@@ -32,13 +47,40 @@ export default function FixturesPage() {
       ),
   });
 
+  const { data: seasons } = useQuery({
+    queryKey: ["seasons"],
+    queryFn: () => seasonsService.getSeasons(),
+  });
+
+  const { data: stadiums } = useQuery({
+    queryKey: ["stadiums"],
+    queryFn: () => stadiumsService.getStadiums(),
+  });
+
+  /* =======================
+     Form
+  ======================= */
+
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<CreateFixtureInput>({
     resolver: zodResolver(createFixtureSchema),
+  });
+
+  const selectedSeasonId = useWatch({ control, name: "seasonId" });
+  const homeTeamId = useWatch({ control, name: "homeTeamId" });
+
+  const { data: teams } = useQuery({
+    queryKey: ["teams", selectedSeasonId],
+    queryFn: () =>
+      selectedSeasonId
+        ? teamsService.getTeams({ seasonId: selectedSeasonId })
+        : Promise.resolve([]),
+    enabled: !!selectedSeasonId,
   });
 
   const createMutation = useMutation({
@@ -61,17 +103,29 @@ export default function FixturesPage() {
     createMutation.mutate(data);
   };
 
+  /* =======================
+     Helpers
+  ======================= */
+
+  const availableAwayTeams = useMemo(
+    () => teams?.filter((t) => t.id !== homeTeamId) ?? [],
+    [teams, homeTeamId],
+  );
+
   const getStatusBadge = (status: FixtureStatus) => {
-    const colors: Record<FixtureStatus, string> = {
+    const map: Record<FixtureStatus, string> = {
       scheduled: "bg-blue-500/10 text-blue-400 border-blue-500/30",
       live: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 animate-pulse",
       half_time: "bg-amber-500/10 text-amber-400 border-amber-500/30",
       finished: "bg-slate-500/10 text-slate-300 border-slate-500/30",
       postponed: "bg-rose-500/10 text-rose-400 border-rose-500/30",
     };
-
-    return colors[status];
+    return map[status];
   };
+
+  /* =======================
+     Render
+  ======================= */
 
   return (
     <div className="space-y-6">
@@ -80,28 +134,19 @@ export default function FixturesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Fixtures</h1>
           <p className="text-slate-400 mt-1">
-            Create and manage league fixtures and schedules.
+            Create and manage league fixtures.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex gap-3">
           <select
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter(e.target.value as "all" | FixtureStatus)
+              setStatusFilter(e.target.value as any)
             }
-            className="
-              px-4 py-2
-              bg-slate-800
-              border border-slate-700
-              rounded-xl
-              text-sm font-semibold
-              text-slate-200
-              focus:outline-none
-              focus:ring-2 focus:ring-emerald-500/20
-            "
+            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-200"
           >
-            <option value="all">All Fixtures</option>
+            <option value="all">All</option>
             <option value="scheduled">Scheduled</option>
             <option value="live">Live</option>
             <option value="half_time">Half Time</option>
@@ -109,7 +154,7 @@ export default function FixturesPage() {
             <option value="postponed">Postponed</option>
           </select>
 
-          <PrimaryButton onClick={() => setShowCreateForm(!showCreateForm)}>
+          <PrimaryButton onClick={() => setShowCreateForm(true)}>
             <Plus className="w-4 h-4" />
             Add Fixture
           </PrimaryButton>
@@ -123,44 +168,74 @@ export default function FixturesPage() {
             onSubmit={handleSubmit(onSubmit)}
             className="grid grid-cols-2 gap-4"
           >
-            <FormInput
-              label="Season ID"
+            {/* Season */}
+            <FormSelect
+              label="Season *"
               {...register("seasonId")}
               error={errors.seasonId}
-            />
-            <FormInput
-              label="Home Team ID"
-              {...register("homeTeamId")}
-              error={errors.homeTeamId}
-            />
-            <FormInput
-              label="Away Team ID"
-              {...register("awayTeamId")}
-              error={errors.awayTeamId}
+              options={
+                seasons?.map((s) => ({
+                  label: s.name,
+                  value: s.id,
+                })) ?? []
+              }
             />
 
+            {/* Match Date */}
             <FormInput
-              label="Match Date"
+              label="Match Date *"
               type="datetime-local"
               {...register("matchDate")}
               error={errors.matchDate}
             />
 
+            {/* Teams */}
+            <FormSelect
+              label="Home Team *"
+              {...register("homeTeamId")}
+              error={errors.homeTeamId}
+              options={
+                teams?.map((t) => ({
+                  label: t.name,
+                  value: t.id,
+                })) ?? []
+              }
+            />
+
+            <FormSelect
+              label="Away Team *"
+              {...register("awayTeamId")}
+              error={errors.awayTeamId}
+              options={
+                availableAwayTeams.map((t) => ({
+                  label: t.name,
+                  value: t.id,
+                }))
+              }
+            />
+
+            {/* Venue */}
             <div className="col-span-2">
-              <FormInput
-                label="Venue"
+              <FormSelect
+                label="Venue (Stadium)"
                 {...register("venue")}
                 error={errors.venue}
+                options={
+                  stadiums?.data.map((s) => ({
+                    label: `${s.name} (${s.city ?? "—"})`,
+                    value: s.name,
+                  })) ?? []
+                }
               />
             </div>
 
+            {/* Actions */}
             <div className="col-span-2 flex gap-3">
-              <PrimaryButton type="submit" loading={createMutation.isPending}>
-                {createMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Create Fixture"
-                )}
+              <PrimaryButton
+                type="submit"
+                loading={createMutation.isPending}
+              >
+                Create Fixture
               </PrimaryButton>
 
               <SecondaryButton
@@ -177,34 +252,21 @@ export default function FixturesPage() {
         </FormSection>
       )}
 
-      {/* Fixtures List */}
+      {/* Fixtures */}
       {isLoading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
         </div>
-      ) : data?.fixtures.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-          <p className="text-lg font-bold">
-            No fixtures found matching your criteria.
-          </p>
-        </div>
       ) : (
         <div className="grid gap-4">
-          {data?.fixtures.map((fixture: Fixture) => (
+          {fixtures?.map((fixture: Fixture) => (
             <div
               key={fixture.id}
-              className="
-                bg-slate-900
-                border border-slate-700
-                rounded-2xl
-                p-6
-                hover:border-emerald-500/30
-                transition-all
-              "
+              className="bg-slate-900 border border-slate-700 rounded-2xl p-6"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex justify-between">
                 <div>
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex gap-3 mb-2">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusBadge(
                         fixture.status,
@@ -213,13 +275,13 @@ export default function FixturesPage() {
                       {fixture.status.toUpperCase()}
                     </span>
 
-                    <span className="text-sm text-slate-400 flex items-center gap-1">
+                    <span className="text-slate-400 flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       {new Date(fixture.matchDate).toLocaleString()}
                     </span>
 
                     {fixture.venue && (
-                      <span className="text-sm text-slate-400 flex items-center gap-1">
+                      <span className="text-slate-400 flex items-center gap-1">
                         <MapPin className="w-4 h-4" />
                         {fixture.venue}
                       </span>
@@ -230,23 +292,23 @@ export default function FixturesPage() {
                     <div className="flex-1 text-right">
                       {fixture.homeTeam.name}
                     </div>
-
                     <div className="px-6 py-3 bg-slate-800 rounded-xl">
-                      {fixture.homeScore ?? "-"} : {fixture.awayScore ?? "-"}
+                      {fixture.homeScore ?? "-"} :{" "}
+                      {fixture.awayScore ?? "-"}
                     </div>
-
-                    <div className="flex-1">{fixture.awayTeam.name}</div>
+                    <div className="flex-1">
+                      {fixture.awayTeam.name}
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex gap-2 ml-6">
-                  <button className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500">
+                <div className="flex gap-2">
+                  <button className="p-2 hover:bg-slate-800 rounded-lg">
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => deleteMutation.mutate(fixture.id)}
-                    disabled={deleteMutation.isPending}
-                    className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500"
+                    className="p-2 hover:bg-rose-500/10 rounded-lg text-rose-400"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
