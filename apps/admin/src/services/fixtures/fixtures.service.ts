@@ -11,12 +11,12 @@ export const fixturesService = {
   getFixtures: async (
     filters?: FixtureFilters,
   ): Promise<FixturesResponse> => {
-    const { data } = await apiClient.get<Fixture[]>(
+    const { data } = await apiClient.get<FixturesResponse>(
       "/admin/fixtures",
       { params: filters },
     );
 
-    return { fixtures: data };
+    return data;
   },
 
   createFixture: async (

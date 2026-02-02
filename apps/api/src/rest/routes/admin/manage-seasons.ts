@@ -106,7 +106,7 @@ app.get("/", async (c) => {
     orderBy: (s, { desc }) => [desc(s.startDate)],
   });
 
-  return c.json(results);
+  return c.json({ data: results });
 });
 
 app.get("/current/:leagueId", async (c) => {

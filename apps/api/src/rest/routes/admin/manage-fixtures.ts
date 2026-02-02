@@ -144,7 +144,7 @@ app.get("/", async (c) => {
         orderBy: (m, { asc }) => [asc(m.matchDate)],
     });
 
-    return c.json(fixtures);
+    return c.json({ data: fixtures });
 });
 
 app.delete("/:id", enforceMatchUnlocked(),async (c) => {

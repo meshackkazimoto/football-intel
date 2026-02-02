@@ -111,7 +111,7 @@ app.get("/", async (c) => {
     },
   });
 
-  return c.json(results);
+  return c.json({ data: results });
 });
 
 app.delete("/:id", async (c) => {

@@ -40,7 +40,7 @@ export interface Fixture {
 }
 
 export interface FixturesResponse {
-  fixtures: Fixture[];
+  data: Fixture[];
 }
 
 export interface FixtureFilters {

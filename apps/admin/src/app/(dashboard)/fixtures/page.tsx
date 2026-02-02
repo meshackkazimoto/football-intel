@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fixturesService } from "@/services/fixtures/fixtures.service";
 import { seasonsService } from "@/services/seasons/seasons.service";
@@ -35,10 +35,6 @@ export default function FixturesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
 
-  /* =======================
-     Queries
-  ======================= */
-
   const { data: fixtures, isLoading } = useQuery({
     queryKey: ["fixtures", statusFilter],
     queryFn: () =>
@@ -57,10 +53,6 @@ export default function FixturesPage() {
     queryFn: () => stadiumsService.getStadiums(),
   });
 
-  /* =======================
-     Form
-  ======================= */
-
   const {
     register,
     handleSubmit,
@@ -74,14 +66,13 @@ export default function FixturesPage() {
   const selectedSeasonId = useWatch({ control, name: "seasonId" });
   const homeTeamId = useWatch({ control, name: "homeTeamId" });
 
-  const { data: teams } = useQuery({
+  const { data: teamsResponse } = useQuery({
     queryKey: ["teams", selectedSeasonId],
-    queryFn: () =>
-      selectedSeasonId
-        ? teamsService.getTeams({ seasonId: selectedSeasonId })
-        : Promise.resolve([]),
+    queryFn: () => teamsService.getTeams(selectedSeasonId!),
     enabled: !!selectedSeasonId,
   });
+
+  const teams = teamsResponse?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: fixturesService.createFixture,
@@ -103,10 +94,6 @@ export default function FixturesPage() {
     createMutation.mutate(data);
   };
 
-  /* =======================
-     Helpers
-  ======================= */
-
   const availableAwayTeams = useMemo(
     () => teams?.filter((t) => t.id !== homeTeamId) ?? [],
     [teams, homeTeamId],
@@ -122,10 +109,6 @@ export default function FixturesPage() {
     };
     return map[status];
   };
-
-  /* =======================
-     Render
-  ======================= */
 
   return (
     <div className="space-y-6">
@@ -174,7 +157,7 @@ export default function FixturesPage() {
               {...register("seasonId")}
               error={errors.seasonId}
               options={
-                seasons?.map((s) => ({
+                seasons?.data.map((s) => ({
                   label: s.name,
                   value: s.id,
                 })) ?? []
@@ -185,7 +168,7 @@ export default function FixturesPage() {
             <FormInput
               label="Match Date *"
               type="datetime-local"
-              {...register("matchDate")}
+              {...register("matchDate", { required: true })}
               error={errors.matchDate}
             />
 
@@ -259,7 +242,7 @@ export default function FixturesPage() {
         </div>
       ) : (
         <div className="grid gap-4">
-          {fixtures?.map((fixture: Fixture) => (
+          {fixtures?.data.map((fixture: Fixture) => (
             <div
               key={fixture.id}
               className="bg-slate-900 border border-slate-700 rounded-2xl p-6"
