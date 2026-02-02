@@ -150,60 +150,71 @@ export default function SystemLogsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.data.map((log) => (
-                  <TableRow
-                    key={log.id}
-                    className="hover:bg-slate-800/50 transition-colors"
-                  >
-                    <TableCell className="font-mono text-slate-400">
-                      {log.id.slice(0, 8)}...
-                    </TableCell>
-                    <TableCell>
-                      <span className="inline-flex px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold">
-                        {log.type}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-semibold text-slate-300">
-                      {log.source}
-                    </TableCell>
-                    <TableCell>{getStatusBadge(log.status)}</TableCell>
-                    <TableCell className="text-slate-400">
-                      {new Date(log.createdAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() =>
-                            setSelectedLog(
-                              selectedLog === log.id ? null : log.id,
-                            )
-                          }
-                          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        {log.status === "pending" && (
-                          <>
-                            <button
-                              onClick={() => setSelectedLog(log.id)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors"
-                            >
-                              Verify
-                            </button>
-                            <button
-                              onClick={() => rejectMutation.mutate(log.id)}
-                              disabled={rejectMutation.isPending}
-                              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </div>
+                {data?.data.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-24 text-center text-slate-400"
+                    >
+                      No system logs found.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  data?.data.map((log) => (
+                    <TableRow
+                      key={log.id}
+                      className="hover:bg-slate-800/50 transition-colors"
+                    >
+                      <TableCell className="font-mono text-slate-400">
+                        {log.id.slice(0, 8)}...
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold">
+                          {log.type}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-semibold text-slate-300">
+                        {log.source}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(log.status)}</TableCell>
+                      <TableCell className="text-slate-400">
+                        {new Date(log.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() =>
+                              setSelectedLog(
+                                selectedLog === log.id ? null : log.id,
+                              )
+                            }
+                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          {log.status === "pending" && (
+                            <>
+                              <button
+                                onClick={() => setSelectedLog(log.id)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors"
+                              >
+                                Verify
+                              </button>
+                              <button
+                                onClick={() => rejectMutation.mutate(log.id)}
+                                disabled={rejectMutation.isPending}
+                                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>

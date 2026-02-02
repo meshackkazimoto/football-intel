@@ -162,6 +162,11 @@ export default function ClubsPage() {
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
         </div>
+      ) : data?.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <p className="text-lg font-bold">No clubs found.</p>
+          <p className="text-sm">Get started by adding a new club.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {data?.map((club, index) => (

@@ -22,4 +22,8 @@ export const stadiumsService = {
     );
     return data;
   },
+
+  deleteStadium: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/stadiums/${id}`);
+  },
 };

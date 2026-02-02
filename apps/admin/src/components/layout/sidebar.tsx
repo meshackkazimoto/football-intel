@@ -23,6 +23,7 @@ const navigation = [
   // { name: "Matches", href: "/matches", icon: Calendar },
   { name: "Players", href: "/players", icon: Users },
   { name: "Clubs", href: "/clubs", icon: Trophy },
+  { name: "Stadiums", href: "/stadiums", icon: Trophy },
   { name: "Ingestion Logs", href: "/system-logs", icon: FileText },
   { name: "Verifications", href: "/verifications", icon: ShieldCheck },
 ];

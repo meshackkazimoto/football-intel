@@ -2,15 +2,14 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { playersService } from "@/services/players/players.service";
-import { Plus, Edit, Trash2, Loader2, User } from "lucide-react";
+import { stadiumsService } from "@/services/stadiums/stadiums.service";
+import { Plus, Edit, Trash2, Loader2, MapPin } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { CreatePlayerInput, Player } from "@/services/players/types";
-import { createPlayerSchema } from "@/services/players/validation";
+import type { CreateStadiumInput, Stadium } from "@/services/stadiums/types";
+import { createStadiumSchema } from "@/services/stadiums/validation";
 import { SearchInput } from "@/components/ui/search";
 import { FormInput } from "@/components/ui/input";
-import { FormSelect } from "@/components/ui/select";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-section";
 import {
@@ -22,15 +21,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export default function PlayersPage() {
+export default function StadiumsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["players", searchQuery],
-    queryFn: () =>
-      playersService.getPlayers(searchQuery ? { search: searchQuery } : {}),
+    queryKey: ["stadiums", searchQuery],
+    queryFn: () => stadiumsService.getStadiums(),
   });
 
   const {
@@ -38,27 +36,27 @@ export default function PlayersPage() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<CreatePlayerInput>({
-    resolver: zodResolver(createPlayerSchema),
+  } = useForm<CreateStadiumInput>({
+    resolver: zodResolver(createStadiumSchema),
   });
 
   const createMutation = useMutation({
-    mutationFn: playersService.createPlayer,
+    mutationFn: stadiumsService.createStadium,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["players"] });
+      queryClient.invalidateQueries({ queryKey: ["stadiums"] });
       setShowCreateForm(false);
       reset();
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: playersService.deletePlayer,
+    mutationFn: stadiumsService.deleteStadium,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["players"] });
+      queryClient.invalidateQueries({ queryKey: ["stadiums"] });
     },
   });
 
-  const onSubmit = (formData: CreatePlayerInput) => {
+  const onSubmit = (formData: CreateStadiumInput) => {
     createMutation.mutate(formData);
   };
 
@@ -68,16 +66,16 @@ export default function PlayersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">
-            Player Directory
+            Stadium Management
           </h1>
           <p className="text-slate-400 mt-1">
-            Manage player profiles and statistics.
+            Manage stadium locations, capacities, and metadata.
           </p>
         </div>
 
         <PrimaryButton onClick={() => setShowCreateForm(!showCreateForm)}>
           <Plus className="w-4 h-4" />
-          Register Player
+          Add Stadium
         </PrimaryButton>
       </div>
 
@@ -85,65 +83,49 @@ export default function PlayersPage() {
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search players by name..."
+        placeholder="Search stadiums by name..."
       />
 
-      {/* Create Player Form */}
+      {/* Create Stadium Form */}
       {showCreateForm && (
-        <FormSection title="Register New Player">
+        <FormSection title="Register New Stadium">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="grid grid-cols-2 gap-4"
           >
             <div className="col-span-2">
               <FormInput
-                label="Full Name *"
-                {...register("fullName")}
-                error={errors.fullName}
+                label="Stadium Name *"
+                {...register("name")}
+                error={errors.name}
               />
             </div>
 
+            <FormInput label="City" {...register("city")} error={errors.city} />
+
             <FormInput
-              label="First Name"
-              {...register("firstName")}
-              error={errors.firstName}
+              label="Country ID"
+              {...register("countryId")}
+              error={errors.countryId}
             />
 
             <FormInput
-              label="Last Name"
-              {...register("lastName")}
-              error={errors.lastName}
-            />
-
-            <FormInput
-              label="Date of Birth"
-              type="date"
-              {...register("dateOfBirth")}
-              error={errors.dateOfBirth}
-            />
-
-            <FormInput
-              label="Nationality ID"
-              {...register("nationalityId")}
-              error={errors.nationalityId}
-            />
-
-            <FormSelect
-              label="Preferred Foot"
-              {...register("preferredFoot")}
-              options={[
-                { label: "Left", value: "left" },
-                { label: "Right", value: "right" },
-                { label: "Both", value: "both" },
-              ]}
-              error={errors.preferredFoot}
-            />
-
-            <FormInput
-              label="Height (cm)"
+              label="Capacity"
               type="number"
-              {...register("height", { valueAsNumber: true })}
-              error={errors.height}
+              {...register("capacity", { valueAsNumber: true })}
+              error={errors.capacity}
+            />
+
+            <FormInput
+              label="Latitude"
+              {...register("latitude")}
+              error={errors.latitude}
+            />
+
+            <FormInput
+              label="Longitude"
+              {...register("longitude")}
+              error={errors.longitude}
             />
 
             <div className="col-span-2 flex gap-3">
@@ -151,7 +133,7 @@ export default function PlayersPage() {
                 {createMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  "Register Player"
+                  "Register Stadium"
                 )}
               </PrimaryButton>
 
@@ -169,7 +151,7 @@ export default function PlayersPage() {
         </FormSection>
       )}
 
-      {/* Players Table */}
+      {/* Stadiums Table */}
       {isLoading ? (
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
@@ -177,7 +159,7 @@ export default function PlayersPage() {
       ) : error ? (
         <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-6">
           <p className="text-rose-400 text-center font-bold">
-            Failed to load players
+            Failed to load stadiums
           </p>
         </div>
       ) : (
@@ -185,16 +167,11 @@ export default function PlayersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                {[
-                  "Player",
-                  "Club",
-                  "Position",
-                  "Nationality",
-                  "Jersey",
-                  "Actions",
-                ].map((h) => (
-                  <TableHead key={h}>{h}</TableHead>
-                ))}
+                {["Stadium", "City", "Country", "Capacity", "Actions"].map(
+                  (h) => (
+                    <TableHead key={h}>{h}</TableHead>
+                  ),
+                )}
               </TableRow>
             </TableHeader>
 
@@ -202,43 +179,47 @@ export default function PlayersPage() {
               {data?.data.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={5}
                     className="h-24 text-center text-slate-400"
                   >
-                    No players found matching your criteria.
+                    No stadiums found matching your criteria.
                   </TableCell>
                 </TableRow>
               ) : (
-                data?.data.map((player: Player) => (
+                data?.data.map((stadium: Stadium) => (
                   <TableRow
-                    key={player.id}
+                    key={stadium.id}
                     className="hover:bg-slate-800/60 transition-colors"
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                          <User className="w-5 h-5 text-emerald-600" />
+                          <MapPin className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div>
                           <p className="font-bold text-slate-100">
-                            {player.fullName}
+                            {stadium.name}
                           </p>
                           <p className="text-xs text-slate-400">
-                            {player.firstName} {player.lastName}
+                            {stadium.city ?? "—"}
                           </p>
                         </div>
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-slate-300">{"—"}</TableCell>
-
-                    <TableCell className="text-slate-400">{"—"}</TableCell>
-
                     <TableCell className="text-slate-400">
-                      {player.nationality?.name ?? "-"}
+                      {stadium.city ?? "—"}
                     </TableCell>
 
-                    <TableCell className="text-slate-400">{"—"}</TableCell>
+                    <TableCell className="text-slate-400">
+                      {stadium.country?.name ?? "—"}
+                    </TableCell>
+
+                    <TableCell className="text-slate-300">
+                      {stadium.capacity
+                        ? stadium.capacity.toLocaleString()
+                        : "—"}
+                    </TableCell>
 
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -246,7 +227,7 @@ export default function PlayersPage() {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => deleteMutation.mutate(player.id)}
+                          onClick={() => deleteMutation.mutate(stadium.id)}
                           disabled={deleteMutation.isPending}
                           className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500"
                         >

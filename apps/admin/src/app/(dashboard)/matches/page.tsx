@@ -172,6 +172,12 @@ export default function MatchesPage() {
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
         </div>
+      ) : data?.matches.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+          <p className="text-lg font-bold">
+            No matches found matching your criteria.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4">
           {data?.matches.map((match) => (

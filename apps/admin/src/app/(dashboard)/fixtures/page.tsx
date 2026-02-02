@@ -182,6 +182,12 @@ export default function FixturesPage() {
         <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
         </div>
+      ) : data?.fixtures.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <p className="text-lg font-bold">
+            No fixtures found matching your criteria.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-4">
           {data?.fixtures.map((fixture: Fixture) => (
