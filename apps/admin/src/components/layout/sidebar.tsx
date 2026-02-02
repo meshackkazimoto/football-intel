@@ -24,6 +24,7 @@ import { authService } from "@/services/auth/auth.service";
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Leagues", href: "/leagues", icon: Trophy },
+  { name: "Standings", href: "/standings", icon: Trophy },
   { name: "Seasons", href: "/seasons", icon: CalendarDays },
   { name: "Fixtures", href: "/fixtures", icon: CalendarClock },
   { name: "Matches", href: "/matches", icon: Swords },

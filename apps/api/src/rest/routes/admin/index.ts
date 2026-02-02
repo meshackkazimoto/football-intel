@@ -36,6 +36,7 @@ import managePlayers from "./manage-players";
 import manageStadiums from "./manage-stadiums";
 import managePlayerContracts from "./manage-player-contracts";
 import manageLeagues from "./manage-leagues";
+import manageStandings from "./manage-standings";
 
 const app = new Hono<{
   Variables: {
@@ -84,6 +85,7 @@ app.route("/match-status", manageMatchStatus);
 app.route("/players", managePlayers);
 app.route("/player-contracts", managePlayerContracts);
 app.route("/stadiums", manageStadiums);
+app.route("/standings", manageStandings);
 
 app.post("/ingest", createRateLimiter(20, 60), async (c) => {
   const body = await c.req.json();
@@ -405,9 +407,7 @@ app.get("/ingestion-logs", async (c) => {
   const limit = Number(c.req.query("limit") ?? 20);
 
   const logs = await db.query.ingestionLogs.findMany({
-    where: status
-      ? eq(ingestionLogs.status, status)
-      : undefined,
+    where: status ? eq(ingestionLogs.status, status) : undefined,
     orderBy: (l, { desc }) => [desc(l.createdAt)],
     limit,
   });
