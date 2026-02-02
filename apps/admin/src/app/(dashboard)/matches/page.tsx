@@ -3,12 +3,25 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { matchesService } from "@/services/matches/matches.service";
-import { Plus, Calendar, MapPin, Edit, Trash2, Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { seasonsService } from "@/services/seasons/seasons.service";
+import { teamsService } from "@/services/teams/teams.service";
+import { stadiumsService } from "@/services/stadiums/stadiums.service";
+import {
+  Plus,
+  Calendar,
+  MapPin,
+  Edit,
+  Trash2,
+  Loader2,
+  Trophy,
+} from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   createMatchSchema,
   type CreateMatchInput,
+  type Match,
+  type MatchStatus,
 } from "@/services/matches/types";
 import { FormInput } from "@/components/ui/input";
 import { FormSelect } from "@/components/ui/select";
@@ -16,11 +29,11 @@ import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-section";
 
 export default function MatchesPage() {
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | MatchStatus>("all");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data: matchesResponse, isLoading } = useQuery({
     queryKey: ["matches", statusFilter],
     queryFn: () =>
       matchesService.getMatches(
@@ -28,14 +41,36 @@ export default function MatchesPage() {
       ),
   });
 
+  const { data: seasons } = useQuery({
+    queryKey: ["seasons"],
+    queryFn: () => seasonsService.getSeasons(),
+  });
+
+  const { data: stadiums } = useQuery({
+    queryKey: ["stadiums"],
+    queryFn: () => stadiumsService.getStadiums(),
+  });
+
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<CreateMatchInput>({
     resolver: zodResolver(createMatchSchema),
   });
+
+  const selectedSeasonId = useWatch({ control, name: "seasonId" });
+  const homeTeamId = useWatch({ control, name: "homeTeamId" });
+
+  const { data: teamsResponse } = useQuery({
+    queryKey: ["teams", selectedSeasonId],
+    queryFn: () => teamsService.getTeams(selectedSeasonId!),
+    enabled: !!selectedSeasonId,
+  });
+
+  const teams = teamsResponse?.data ?? [];
 
   const createMutation = useMutation({
     mutationFn: matchesService.createMatch,
@@ -57,33 +92,47 @@ export default function MatchesPage() {
     createMutation.mutate(data);
   };
 
-  const getStatusBadge = (status: string) => {
-    const colors = {
-      scheduled: "bg-blue-500/10 text-blue-600 border-blue-500/20",
-      live: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 animate-pulse",
-      finished: "bg-slate-500/10 text-slate-600 border-slate-500/20",
-      postponed: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-      cancelled: "bg-rose-500/10 text-rose-600 border-rose-500/20",
+  const matches = matchesResponse?.data ?? [];
+
+  const getStatusBadge = (status: MatchStatus) => {
+    const colors: Record<MatchStatus, string> = {
+      scheduled: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+      live: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 animate-pulse",
+      half_time: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+      finished: "bg-slate-500/10 text-slate-400 border-slate-500/30",
+      postponed: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+      cancelled: "bg-rose-900/10 text-rose-600 border-rose-900/30",
     };
-    return colors[status as keyof typeof colors] || colors.scheduled;
+    return colors[status] || colors.scheduled;
+  };
+
+  const formatMatchScore = (match: Match) => {
+    if (match.status === "scheduled" || match.status === "postponed") {
+      return "vs";
+    }
+    return `${match.homeScore ?? 0} - ${match.awayScore ?? 0}`;
   };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Matches & Fixtures
+          <h1 className="text-2xl font-bold text-slate-100">
+            Matches & Results
           </h1>
-          <p className="text-slate-500 mt-1">
-            Manage match schedules, scores, and details.
+          <p className="text-slate-400 mt-1">
+            Manage match schedules, live scores, and final results.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        <div className="flex gap-3">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+            onChange={(e) =>
+              setStatusFilter(e.target.value as "all" | MatchStatus)
+            }
+            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-200"
           >
             <option value="all">All Matches</option>
             <option value="scheduled">Scheduled</option>
@@ -91,6 +140,7 @@ export default function MatchesPage() {
             <option value="finished">Finished</option>
             <option value="postponed">Postponed</option>
           </select>
+
           <PrimaryButton onClick={() => setShowCreateForm(!showCreateForm)}>
             <Plus className="w-4 h-4" />
             Add Match
@@ -98,55 +148,74 @@ export default function MatchesPage() {
         </div>
       </div>
 
+      {/* Create Match Form */}
       {showCreateForm && (
         <FormSection title="Create New Match">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="grid grid-cols-2 gap-4"
           >
-            <FormInput
-              label="Season ID"
+            {/* Season */}
+            <FormSelect
+              label="Season *"
               {...register("seasonId")}
               error={errors.seasonId}
-              placeholder="UUID of season"
+              options={
+                seasons?.data.map((s) => ({
+                  label: s.name,
+                  value: s.id,
+                })) ?? []
+              }
             />
+
+            {/* Date */}
             <FormInput
-              label="Match Date"
+              label="Match Date *"
               type="datetime-local"
               {...register("matchDate")}
               error={errors.matchDate}
             />
-            <FormInput
-              label="Home Team ID"
+
+            {/* Teams */}
+            <FormSelect
+              label="Home Team *"
               {...register("homeTeamId")}
               error={errors.homeTeamId}
-              placeholder="UUID of home team"
-            />
-            <FormInput
-              label="Away Team ID"
-              {...register("awayTeamId")}
-              error={errors.awayTeamId}
-              placeholder="UUID of away team"
-            />
-            <FormInput
-              label="Venue"
-              {...register("venue")}
-              placeholder="Stadium name"
+              options={teams.map((t) => ({
+                label: t.name,
+                value: t.id,
+              }))}
             />
 
             <FormSelect
-              label="Status"
-              {...register("status")}
-              options={[
-                { label: "Scheduled", value: "scheduled" },
-                { label: "Live", value: "live" },
-                { label: "Finished", value: "finished" },
-                { label: "Postponed", value: "postponed" },
-                { label: "Cancelled", value: "cancelled" },
-              ]}
+              label="Away Team *"
+              {...register("awayTeamId")}
+              error={errors.awayTeamId}
+              options={teams
+                .filter((t) => t.id !== homeTeamId)
+                .map((t) => ({
+                  label: t.name,
+                  value: t.id,
+                }))}
             />
 
-            <div className="col-span-2 flex gap-3">
+            {/* Venue */}
+            <div className="col-span-2">
+              <FormSelect
+                label="Venue (Stadium)"
+                {...register("venue")}
+                error={errors.venue}
+                options={
+                  stadiums?.data.map((s) => ({
+                    label: `${s.name} (${s.city ?? "—"})`,
+                    value: s.name,
+                  })) ?? []
+                }
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="col-span-2 flex gap-3 mt-4">
               <PrimaryButton type="submit" loading={createMutation.isPending}>
                 {createMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -154,6 +223,7 @@ export default function MatchesPage() {
                   "Create Match"
                 )}
               </PrimaryButton>
+
               <SecondaryButton
                 type="button"
                 onClick={() => {
@@ -168,73 +238,94 @@ export default function MatchesPage() {
         </FormSection>
       )}
 
+      {/* Matches List */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-20">
+        <div className="flex justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-500" />
         </div>
-      ) : data?.matches.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-          <p className="text-lg font-bold">
-            No matches found matching your criteria.
-          </p>
+      ) : matches.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900 border border-slate-700 rounded-2xl">
+          <Trophy className="w-12 h-12 mb-4 opacity-50" />
+          <p className="text-lg font-bold">No matches found</p>
+          <p className="text-sm">Create a new match to get started.</p>
         </div>
       ) : (
         <div className="grid gap-4">
-          {data?.matches.map((match) => (
+          {matches.map((match: Match) => (
             <div
               key={match.id}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-shadow"
+              className="bg-slate-900 border border-slate-700 rounded-2xl p-6 hover:border-emerald-500/30 transition-all group"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span
-                      className={`inline-flex px-3 py-1 rounded-full text-xs font-bold border ${getStatusBadge(match.status)}`}
-                    >
-                      {match.status.toUpperCase()}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                {/* Status & Date */}
+                <div className="flex flex-col gap-2 min-w-[140px]">
+                  <span
+                    className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold border w-fit ${getStatusBadge(
+                      match.status,
+                    )}`}
+                  >
+                    {match.status.toUpperCase()}
+                  </span>
+                  <div className="flex items-center gap-2 text-slate-400 text-sm">
+                    <Calendar className="w-4 h-4" />
+                    <span>
+                      {new Date(match.matchDate).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
-                    <span className="text-sm text-slate-500 flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4" />
-                      {new Date(match.date).toLocaleString()}
-                    </span>
-                    {match.venue && (
-                      <span className="text-sm text-slate-500 flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4" />
-                        {match.venue}
-                      </span>
-                    )}
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex-1 text-right">
-                      <p className="text-lg font-bold text-slate-900">
-                        {match.homeTeam}
-                      </p>
+                  {match.venue && (
+                    <div className="flex items-center gap-2 text-slate-500 text-xs">
+                      <MapPin className="w-3 h-3" />
+                      <span>{match.venue}</span>
                     </div>
-                    <div className="px-6 py-3 bg-slate-50 rounded-xl">
-                      <p className="text-2xl font-black text-slate-900">
-                        {match.homeScore ?? "-"} : {match.awayScore ?? "-"}
-                      </p>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-lg font-bold text-slate-900">
-                        {match.awayTeam}
-                      </p>
-                    </div>
+                  )}
+                </div>
+
+                {/* Teams & Score */}
+                <div className="flex-1 flex items-center justify-center gap-8 w-full">
+                  <div className="flex-1 text-right font-bold text-slate-200 text-lg">
+                    {match.homeTeam.name}
+                  </div>
+
+                  <div className="px-6 py-3 bg-slate-800 rounded-xl font-mono text-xl font-bold text-slate-100 min-w-[100px] text-center shadow-inner">
+                    {formatMatchScore(match)}
+                  </div>
+
+                  <div className="flex-1 text-left font-bold text-slate-200 text-lg">
+                    {match.awayTeam.name}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-6">
-                  <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-emerald-600 transition-colors">
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500 transition-colors">
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => deleteMutation.mutate(match.id)}
                     disabled={deleteMutation.isPending}
-                    className="p-2 hover:bg-rose-50 rounded-lg text-slate-600 hover:text-rose-600 transition-colors disabled:opacity-50"
+                    className="p-2 hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
+
+              {/* Match Events Summary (Optional expansion) */}
+              {(match.status === "live" || match.status === "finished") && (
+                <div className="mt-4 pt-4 border-t border-slate-800 flex justify-center text-xs text-slate-500 gap-4">
+                  {match.currentMinute && (
+                    <span className="text-emerald-500 font-bold">
+                      {match.currentMinute}&apos;
+                    </span>
+                  )}
+                  {/* Add goal scorers here if available in the future */}
+                </div>
+              )}
             </div>
           ))}
         </div>

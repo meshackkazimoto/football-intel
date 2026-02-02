@@ -4,36 +4,31 @@ import {
   MatchesResponse,
   MatchFilters,
   CreateMatchInput,
-  UpdateMatchInput,
 } from "./types";
 
 export const matchesService = {
   getMatches: async (filters?: MatchFilters): Promise<MatchesResponse> => {
-    const { data } = await apiClient.get<MatchesResponse>("/matches", {
+    // We map to /admin/fixtures because that handles all match queries
+    const { data } = await apiClient.get<MatchesResponse>("/admin/fixtures", {
       params: filters,
     });
     return data;
   },
 
   getMatchById: async (id: string): Promise<Match> => {
-    const { data } = await apiClient.get<Match>(`/matches/${id}`);
+    const { data } = await apiClient.get<Match>(`/admin/fixtures/${id}`);
     return data;
   },
 
   createMatch: async (input: CreateMatchInput): Promise<Match> => {
-    const { data } = await apiClient.post<Match>("/matches", {
+    const { data } = await apiClient.post<Match>("/admin/fixtures", {
       ...input,
       status: input.status || "scheduled",
     });
     return data;
   },
 
-  updateMatch: async (id: string, input: UpdateMatchInput): Promise<Match> => {
-    const { data } = await apiClient.patch<Match>(`/matches/${id}`, input);
-    return data;
-  },
-
   deleteMatch: async (id: string): Promise<void> => {
-    await apiClient.delete(`/matches/${id}`);
+    await apiClient.delete(`/admin/fixtures/${id}`);
   },
 };

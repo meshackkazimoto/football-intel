@@ -4,7 +4,9 @@ export const createFixtureSchema = z.object({
     seasonId: z.string().uuid(),
     homeTeamId: z.string().uuid(),
     awayTeamId: z.string().uuid(),
-    matchDate: z.string().datetime(),
+    matchDate: z
+    .string()
+    .refine((v) => !Number.isNaN(Date.parse(v))),
     venue: z.string().max(200).optional(),
 });
 
