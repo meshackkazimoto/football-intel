@@ -45,11 +45,23 @@ export const clubs = pgTable("clubs", {
   foundedYear: integer("founded_year"),
   stadiumName: varchar("stadium_name", { length: 200 }),
   stadiumCapacity: integer("stadium_capacity"),
+  stadiumId: uuid("stadium_id").references(() => stadiums.id),
   isActive: boolean("is_active").default(true).notNull(),
   metadata: jsonb("metadata").$type<{
     colors?: { primary: string; secondary: string };
     nickname?: string;
   }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const stadiums = pgTable("stadiums", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 200 }).notNull(),
+  city: varchar("city", { length: 100 }),
+  countryId: uuid("country_id").references(() => countries.id),
+  capacity: integer("capacity"),
+  latitude: varchar("latitude", { length: 20 }),
+  longitude: varchar("longitude", { length: 20 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -642,3 +654,10 @@ export const verificationRecordsRelations = relations(
     }),
   }),
 );
+
+export const stadiumsRelations = relations(stadiums, ({ one }) => ({
+  country: one(countries, {
+    fields: [stadiums.countryId],
+    references: [countries.id],
+  }),
+}));

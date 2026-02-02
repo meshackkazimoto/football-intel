@@ -27,7 +27,7 @@ app.get("/", async (c) => {
     orderBy: (p, { asc }) => [asc(p.fullName)],
   });
 
-  return c.json(data);
+  return c.json({ data });
 });
 
 app.get("/:id", async (c) => {

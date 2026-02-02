@@ -98,15 +98,7 @@ export default function ClubsPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search clubs..."
-          className="
-            w-full pl-12 pr-4 py-3
-            bg-slate-800
-            border border-slate-700
-            rounded-xl
-            text-slate-100
-            focus:outline-none
-            focus:ring-2 focus:ring-emerald-500/20
-          "
+          className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
         />
       </div>
 
