@@ -3,14 +3,18 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  BarChart3,
-  Settings,
-  Users,
+  LayoutDashboard,
   Trophy,
-  Calendar,
+  CalendarDays,
+  CalendarClock,
+  Swords,
+  Users,
+  Globe,
+  Shield,
+  Building2,
   FileText,
   ShieldCheck,
-  LayoutDashboard,
+  BarChart3,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,14 +23,15 @@ import { authService } from "@/services/auth/auth.service";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Leagues", href: "/leagues", icon: Calendar },
-  { name: "Seasons", href: "/seasons", icon: Calendar },
-  { name: "Fixtures", href: "/fixtures", icon: Calendar },
-  // { name: "Matches", href: "/matches", icon: Calendar },
+  { name: "Leagues", href: "/leagues", icon: Trophy },
+  { name: "Seasons", href: "/seasons", icon: CalendarDays },
+  { name: "Fixtures", href: "/fixtures", icon: CalendarClock },
+  { name: "Matches", href: "/matches", icon: Swords },
   { name: "Players", href: "/players", icon: Users },
-  { name: "Countries", href: "/countries", icon: Trophy },
+  { name: "Countries", href: "/countries", icon: Globe },
   { name: "Clubs", href: "/clubs", icon: Trophy },
-  { name: "Stadiums", href: "/stadiums", icon: Trophy },
+  { name: "Teams", href: "/teams", icon: Shield },
+  { name: "Stadiums", href: "/stadiums", icon: Building2 },
   { name: "Ingestion Logs", href: "/system-logs", icon: FileText },
   { name: "Verifications", href: "/verifications", icon: ShieldCheck },
 ];
