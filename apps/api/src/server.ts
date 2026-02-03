@@ -20,6 +20,7 @@ import clubRoutes from "./rest/routes/public/clubs";
 import authRoutes from "./rest/routes/auth";
 import { Env } from "./env";
 import { ZodError } from "zod";
+import { startMatchRuntime } from "./runtime/match-runtime";
 
 dotenv.config();
 
@@ -92,6 +93,8 @@ app.route("/api/v1", v1);
 app.use("/graphql", createRateLimiter(60, 60), async (c) => {
   return yoga.fetch(c.req.raw, c);
 });
+
+startMatchRuntime();
 
 export default {
   port: 3001,
