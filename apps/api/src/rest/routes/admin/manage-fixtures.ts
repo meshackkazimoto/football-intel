@@ -194,6 +194,7 @@ app.get("/:id", async (c) => {
     with: {
       homeTeam: true,
       awayTeam: true,
+      events: true,
     },
   });
 
