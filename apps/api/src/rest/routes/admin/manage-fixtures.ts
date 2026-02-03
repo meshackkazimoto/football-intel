@@ -21,9 +21,6 @@ const app = new Hono<{
 
 app.use("*", requireRole(["SUPER_ADMIN", "ADMIN"]));
 
-/* -----------------------------------------------------
-   CREATE FIXTURE (SCHEDULED MATCH)
------------------------------------------------------ */
 app.post("/", async (c) => {
   const body = createFixtureSchema.parse(await c.req.json());
 
@@ -73,9 +70,6 @@ app.post("/", async (c) => {
   return c.json(fixture, 201);
 });
 
-/* -----------------------------------------------------
-   UPDATE MATCH STATE (START / LIVE / FINISH)
------------------------------------------------------ */
 app.patch("/:id", enforceMatchUnlocked(), async (c) => {
   const id = c.req.param("id");
   const body = updateFixtureSchema.parse(await c.req.json());
@@ -87,8 +81,6 @@ app.patch("/:id", enforceMatchUnlocked(), async (c) => {
   if (!match) {
     return c.json({ error: "Fixture not found" }, 404);
   }
-
-  /* -------- STATUS TRANSITION RULES -------- */
 
   if (body.status === "live") {
     if (match.status !== "scheduled" && match.status !== "half_time") {
@@ -168,9 +160,6 @@ app.patch("/:id", enforceMatchUnlocked(), async (c) => {
   return c.json(updated);
 });
 
-/* -----------------------------------------------------
-   LIST FIXTURES
------------------------------------------------------ */
 app.get("/", async (c) => {
   const seasonId = c.req.query("seasonId");
   const status = c.req.query("status");
@@ -197,9 +186,24 @@ app.get("/", async (c) => {
   return c.json({ data: fixtures });
 });
 
-/* -----------------------------------------------------
-   DELETE FIXTURE
------------------------------------------------------ */
+app.get("/:id", async (c) => {
+  const id = c.req.param("id");
+
+  const match = await db.query.matches.findFirst({
+    where: eq(matches.id, id),
+    with: {
+      homeTeam: true,
+      awayTeam: true,
+    },
+  });
+
+  if (!match) {
+    return c.json({ error: "Fixture not found" }, 404);
+  }
+
+  return c.json(match);
+});
+
 app.delete("/:id", enforceMatchUnlocked(), async (c) => {
   const id = c.req.param("id");
 

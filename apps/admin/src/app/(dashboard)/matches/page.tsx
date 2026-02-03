@@ -31,11 +31,13 @@ import { FormSelect } from "@/components/ui/select";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-section";
 import { LiveMinutePulse } from "@/components/match/live-minute-pulse";
+import { useRouter } from "next/navigation";
 
 export default function MatchesPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | MatchStatus>("all");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data: matchesResponse, isLoading } = useQuery({
     queryKey: ["matches", statusFilter],
@@ -263,7 +265,8 @@ export default function MatchesPage() {
           {matches.map((match) => (
             <div
               key={match.id}
-              className="bg-slate-900 border border-slate-700 rounded-2xl p-6"
+              className="bg-slate-900 border border-slate-700 rounded-2xl p-6 cursor-pointer hover:border-emerald-500/50 transition"
+              onClick={() => router.push(`/matches/${match.id}`)}
             >
               <div className="flex justify-between items-center">
                 <div>
