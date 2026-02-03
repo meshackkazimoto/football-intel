@@ -195,6 +195,7 @@ app.get("/:id", async (c) => {
       homeTeam: true,
       awayTeam: true,
       events: true,
+      playerRatings: true
     },
   });
 

@@ -15,6 +15,16 @@ export interface Team {
   logo?: string;
 }
 
+interface Event {
+  id: string;
+  matchId: string;
+  teamId: string;
+  playerId: string | null;
+  eventType: string;
+  minute: number;
+  createdAt: Date;
+}
+
 export interface Match {
   id: string;
   seasonId: string;
@@ -29,6 +39,7 @@ export interface Match {
   awayScore: number | null;
   currentMinute: number | null;
   period: MatchPeriod | null;
+  events: Event[] | []
 }
 
 export interface MatchesResponse {

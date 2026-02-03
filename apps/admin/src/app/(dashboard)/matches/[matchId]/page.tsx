@@ -6,7 +6,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { matchesService } from "@/services/matches/matches.service";
 import { matchEventsService } from "@/services/match-events/match-events.service";
-import { matchStatsService } from "@/services/match-stats/match-stats.service";
 import { teamsService } from "@/services/teams/teams.service";
 
 import {
@@ -15,19 +14,23 @@ import {
   Square,
   Goal,
   AlertTriangle,
+  ShieldAlert,
   Repeat,
   Loader2,
-  ShieldAlert,
   Timer,
   ToggleLeft,
   ToggleRight,
+  Video,
+  Stethoscope,
+  CloudRain,
+  Users,
 } from "lucide-react";
 
 import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/select";
 import { LiveMinutePulse } from "@/components/match/live-minute-pulse";
 
-import type { Match, MatchStatus } from "@/services/matches/types";
+import type { Match } from "@/services/matches/types";
 
 const CURRENT_ROLE: "ADMIN" | "REFEREE" | "VIEWER" = "REFEREE";
 
@@ -38,7 +41,6 @@ export default function MatchAdminPage() {
   const [autoTicker, setAutoTicker] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [showSubModal, setShowSubModal] = useState(false);
 
   const { data: match, isLoading } = useQuery({
     queryKey: ["match", matchId],
@@ -78,7 +80,7 @@ export default function MatchAdminPage() {
     if (!match || match.status !== "live") return;
 
     const source = new EventSource(
-      `/api/v1/matches/${matchId}/live-stream`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/matches/${matchId}/live-stream`,
     );
 
     source.onmessage = () => {
@@ -88,6 +90,9 @@ export default function MatchAdminPage() {
     return () => source.close();
   }, [match?.status, matchId]);
 
+  /* -----------------------------------------------------
+     AUTO MINUTE TICKER
+  ----------------------------------------------------- */
   useEffect(() => {
     if (!autoTicker || match?.status !== "live") return;
 
@@ -111,6 +116,9 @@ export default function MatchAdminPage() {
   const canControl =
     CURRENT_ROLE === "ADMIN" || CURRENT_ROLE === "REFEREE";
 
+  /* -----------------------------------------------------
+     STATUS ACTIONS
+  ----------------------------------------------------- */
   const startMatch = () =>
     updateMatch.mutate({
       status: "live",
@@ -140,15 +148,15 @@ export default function MatchAdminPage() {
     });
 
   /* -----------------------------------------------------
-     EVENTS
+     EVENT / INCIDENT HANDLER
   ----------------------------------------------------- */
-  const pushEvent = (type: string) => {
+  const pushEvent = (eventType: string) => {
     if (!selectedTeamId) return;
 
     addEvent.mutate({
       matchId,
       teamId: selectedTeamId,
-      eventType: type,
+      eventType,
       minute: match.currentMinute ?? 0,
       playerId: selectedPlayerId ?? undefined,
     });
@@ -233,24 +241,16 @@ export default function MatchAdminPage() {
         </div>
       )}
 
-      {/* EVENT CONTROLS */}
+      {/* TEAM & PLAYER PICKER */}
       {canControl && match.status !== "scheduled" && (
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4">
-          <h3 className="font-bold text-slate-100">Add Event</h3>
-
+        <div className="grid grid-cols-2 gap-4">
           <FormSelect
             label="Team"
             value={selectedTeamId ?? ""}
             onChange={(e) => setSelectedTeamId(e.target.value)}
             options={[
-              {
-                label: match.homeTeam.name,
-                value: match.homeTeamId,
-              },
-              {
-                label: match.awayTeam.name,
-                value: match.awayTeamId,
-              },
+              { label: match.homeTeam.name, value: match.homeTeamId },
+              { label: match.awayTeam.name, value: match.awayTeamId },
             ]}
           />
 
@@ -266,8 +266,17 @@ export default function MatchAdminPage() {
               })),
             ]}
           />
+        </div>
+      )}
 
-          <div className="flex gap-3 flex-wrap">
+      {/* INCIDENT PANEL */}
+      {canControl && match.status !== "scheduled" && (
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4">
+          <h3 className="font-bold text-slate-100">
+            Match Incidents
+          </h3>
+
+          <div className="flex flex-wrap gap-3">
             <PrimaryButton onClick={() => pushEvent("goal")}>
               <Goal className="w-4 h-4" />
               Goal
@@ -277,19 +286,42 @@ export default function MatchAdminPage() {
               onClick={() => pushEvent("yellow_card")}
             >
               <AlertTriangle className="w-4 h-4" />
-              Yellow
+              Yellow Card
             </SecondaryButton>
 
             <SecondaryButton
               onClick={() => pushEvent("red_card")}
             >
               <ShieldAlert className="w-4 h-4" />
-              Red
+              Red Card
             </SecondaryButton>
 
-            <SecondaryButton onClick={() => setShowSubModal(true)}>
-              <Repeat className="w-4 h-4" />
-              Substitution
+            <SecondaryButton
+              onClick={() => pushEvent("var_check")}
+            >
+              <Video className="w-4 h-4" />
+              VAR Check
+            </SecondaryButton>
+
+            <SecondaryButton
+              onClick={() => pushEvent("injury")}
+            >
+              <Stethoscope className="w-4 h-4" />
+              Injury
+            </SecondaryButton>
+
+            <SecondaryButton
+              onClick={() => pushEvent("weather_delay")}
+            >
+              <CloudRain className="w-4 h-4" />
+              Weather Delay
+            </SecondaryButton>
+
+            <SecondaryButton
+              onClick={() => pushEvent("crowd_incident")}
+            >
+              <Users className="w-4 h-4" />
+              Crowd Incident
             </SecondaryButton>
           </div>
         </div>
@@ -307,7 +339,7 @@ export default function MatchAdminPage() {
           </p>
         ) : (
           <ul className="space-y-2 text-sm">
-            {match.events?.map((e) => (
+            {match.events.map((e) => (
               <li
                 key={e.id}
                 className="flex justify-between border-b border-slate-800 pb-1"
