@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const CreateLineupSchema = z.object({
+const lineupSchemaBase = z.object({
   matchId: z.string().uuid(),
   teamId: z.string().uuid(),
   players: z
@@ -13,7 +13,9 @@ export const CreateLineupSchema = z.object({
       }),
     )
     .min(1),
-}).superRefine((data, ctx) => {
+});
+
+export const CreateLineupSchema = lineupSchemaBase.superRefine((data, ctx) => {
   const starters = data.players.filter((p) => p.isStarting).length;
   if (starters !== 11) {
     ctx.addIssue({
@@ -46,4 +48,4 @@ export const CreateLineupSchema = z.object({
   }
 });
 
-export const UpdateLineupSchema = CreateLineupSchema.partial();
+export const UpdateLineupSchema = lineupSchemaBase.partial();

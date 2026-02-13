@@ -3,10 +3,11 @@
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import axios from "axios";
 
 import { matchesService } from "@/services/matches/matches.service";
 import { matchEventsService } from "@/services/match-events/match-events.service";
-import { teamsService } from "@/services/teams/teams.service";
+import { playerContractsService } from "@/services/player-contracts/player-contracts.service";
 
 import {
   Play,
@@ -31,6 +32,7 @@ import { FormSelect } from "@/components/ui/select";
 import { LiveMinutePulse } from "@/components/match/live-minute-pulse";
 
 import type { Match } from "@/services/matches/types";
+import type { MatchEventType } from "@/services/match-events/types";
 
 const CURRENT_ROLE: "ADMIN" | "REFEREE" | "VIEWER" = "REFEREE";
 
@@ -41,25 +43,32 @@ export default function MatchAdminPage() {
   const [autoTicker, setAutoTicker] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [eventError, setEventError] = useState<string | null>(null);
 
   const { data: match, isLoading } = useQuery({
     queryKey: ["match", matchId],
     queryFn: () => matchesService.getMatchById(matchId),
   });
 
-  const { data: teamsResponse } = useQuery({
-    queryKey: ["teams", match?.seasonId],
+  const { data: teamContracts, isLoading: isLoadingTeamPlayers } = useQuery({
+    queryKey: ["player-contracts", selectedTeamId],
     queryFn: () =>
-      match ? teamsService.getTeams(match.seasonId) : Promise.resolve(null),
-    enabled: !!match,
+      selectedTeamId
+        ? playerContractsService.getContracts({ teamId: selectedTeamId })
+        : Promise.resolve([]),
+    enabled: !!selectedTeamId,
   });
 
-  const players = useMemo(() => {
-    if (!teamsResponse || !match) return [];
-    return teamsResponse.data.filter(
-      (t) => t.id === match.homeTeamId || t.id === match.awayTeamId,
-    );
-  }, [teamsResponse, match]);
+  const eligiblePlayers = useMemo(() => {
+    if (!match || !teamContracts) return [];
+    const matchDate = new Date(match.matchDate).toISOString().slice(0, 10);
+    return teamContracts.filter((contract) => {
+      const startsBeforeOrOnMatch = contract.startDate <= matchDate;
+      const endsAfterOrOnMatch =
+        !contract.endDate || contract.endDate >= matchDate;
+      return startsBeforeOrOnMatch && endsAfterOrOnMatch;
+    });
+  }, [teamContracts, match]);
 
   const updateMatch = useMutation({
     mutationFn: (payload: any) =>
@@ -72,8 +81,19 @@ export default function MatchAdminPage() {
 
   const addEvent = useMutation({
     mutationFn: matchEventsService.createEvent,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["match", matchId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] });
+      setEventError(null);
+    },
+    onError: (error) => {
+      if (axios.isAxiosError(error)) {
+        setEventError(
+          error.response?.data?.error ?? "Failed to add event",
+        );
+        return;
+      }
+      setEventError("Failed to add event");
+    },
   });
 
   useEffect(() => {
@@ -143,15 +163,19 @@ export default function MatchAdminPage() {
       period: "FT",
     });
 
-  const pushEvent = (eventType: string) => {
+  const pushEvent = (eventType: MatchEventType) => {
     if (!selectedTeamId) return;
+    if (!selectedPlayerId) {
+      setEventError("Select a player from the active team roster first.");
+      return;
+    }
 
     addEvent.mutate({
       matchId,
       teamId: selectedTeamId,
       eventType,
       minute: match.currentMinute ?? 0,
-      playerId: selectedPlayerId ?? undefined,
+      playerId: selectedPlayerId,
     });
   };
 
@@ -240,7 +264,11 @@ export default function MatchAdminPage() {
           <FormSelect
             label="Team"
             value={selectedTeamId ?? ""}
-            onChange={(e) => setSelectedTeamId(e.target.value)}
+            onChange={(e) => {
+              setSelectedTeamId(e.target.value);
+              setSelectedPlayerId(null);
+              setEventError(null);
+            }}
             options={[
               { label: match.homeTeam.name, value: match.homeTeamId },
               { label: match.awayTeam.name, value: match.awayTeamId },
@@ -248,19 +276,25 @@ export default function MatchAdminPage() {
           />
 
           <FormSelect
-            label="Player (optional)"
+            label="Player (team roster)"
             value={selectedPlayerId ?? ""}
             onChange={(e) => setSelectedPlayerId(e.target.value)}
             options={[
-              { label: "— None —", value: "" },
-              ...players.map((p) => ({
-                label: p.name,
-                value: p.id,
+              ...eligiblePlayers.map((contract) => ({
+                label: `${contract.player?.fullName ?? contract.playerId} (${contract.position}${contract.jerseyNumber ? ` #${contract.jerseyNumber}` : ""})`,
+                value: contract.playerId,
               })),
             ]}
+            disabled={!selectedTeamId || isLoadingTeamPlayers}
           />
         </div>
       )}
+
+      {eventError ? (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+          {eventError}
+        </div>
+      ) : null}
 
       {/* INCIDENT PANEL */}
       {canControl && match.status !== "scheduled" && (
@@ -290,31 +324,31 @@ export default function MatchAdminPage() {
             </SecondaryButton>
 
             <SecondaryButton
-              onClick={() => pushEvent("var_check")}
+              onClick={() => pushEvent("own_goal")}
             >
               <Video className="w-4 h-4" />
-              VAR Check
+              Own Goal
             </SecondaryButton>
 
             <SecondaryButton
-              onClick={() => pushEvent("injury")}
+              onClick={() => pushEvent("substitution")}
             >
               <Stethoscope className="w-4 h-4" />
-              Injury
+              Substitution
             </SecondaryButton>
 
             <SecondaryButton
-              onClick={() => pushEvent("weather_delay")}
+              onClick={() => pushEvent("penalty_scored")}
             >
               <CloudRain className="w-4 h-4" />
-              Weather Delay
+              Penalty Scored
             </SecondaryButton>
 
             <SecondaryButton
-              onClick={() => pushEvent("crowd_incident")}
+              onClick={() => pushEvent("penalty_missed")}
             >
               <Users className="w-4 h-4" />
-              Crowd Incident
+              Penalty Missed
             </SecondaryButton>
           </div>
         </div>
@@ -341,7 +375,7 @@ export default function MatchAdminPage() {
                   {e.minute}&apos; {e.eventType.replace("_", " ")}
                 </span>
                 <span className="text-slate-500">
-                  {e.player?.fullName ?? "—"}
+                  {e.playerId ?? "—"}
                 </span>
               </li>
             ))}
