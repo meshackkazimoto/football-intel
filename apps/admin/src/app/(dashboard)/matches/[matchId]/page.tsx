@@ -8,6 +8,7 @@ import axios from "axios";
 import { matchesService } from "@/services/matches/matches.service";
 import { matchEventsService } from "@/services/match-events/match-events.service";
 import { playerContractsService } from "@/services/player-contracts/player-contracts.service";
+import { lineupsService } from "@/services/lineups/lineups.service";
 
 import {
   Play,
@@ -33,8 +34,50 @@ import { LiveMinutePulse } from "@/components/match/live-minute-pulse";
 
 import type { Match } from "@/services/matches/types";
 import type { MatchEventType } from "@/services/match-events/types";
+import type { PlayerContract } from "@/services/player-contracts/types";
 
 const CURRENT_ROLE: "ADMIN" | "REFEREE" | "VIEWER" = "REFEREE";
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (!axios.isAxiosError(error)) return fallback;
+
+  const apiError = error.response?.data?.error;
+  if (typeof apiError === "string" && apiError.trim()) return apiError;
+
+  if (apiError && typeof apiError === "object") {
+    const maybe = apiError as {
+      message?: unknown;
+      formErrors?: unknown;
+      fieldErrors?: unknown;
+    };
+
+    if (typeof maybe.message === "string" && maybe.message.trim()) {
+      return maybe.message;
+    }
+
+    if (Array.isArray(maybe.formErrors)) {
+      const formMessage = maybe.formErrors.find(
+        (msg): msg is string => typeof msg === "string" && msg.trim().length > 0,
+      );
+      if (formMessage) return formMessage;
+    }
+
+    if (maybe.fieldErrors && typeof maybe.fieldErrors === "object") {
+      const entries = Object.values(maybe.fieldErrors as Record<string, unknown>);
+      for (const value of entries) {
+        if (Array.isArray(value)) {
+          const fieldMessage = value.find(
+            (msg): msg is string =>
+              typeof msg === "string" && msg.trim().length > 0,
+          );
+          if (fieldMessage) return fieldMessage;
+        }
+      }
+    }
+  }
+
+  return fallback;
+}
 
 export default function MatchAdminPage() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -44,6 +87,14 @@ export default function MatchAdminPage() {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [eventError, setEventError] = useState<string | null>(null);
+  const [lineupError, setLineupError] = useState<string | null>(null);
+  const [lineupSuccess, setLineupSuccess] = useState<string | null>(null);
+  const [homeLineup, setHomeLineup] = useState<
+    Record<string, { selected: boolean; position: string; jerseyNumber?: number }>
+  >({});
+  const [awayLineup, setAwayLineup] = useState<
+    Record<string, { selected: boolean; position: string; jerseyNumber?: number }>
+  >({});
 
   const { data: match, isLoading } = useQuery({
     queryKey: ["match", matchId],
@@ -70,6 +121,46 @@ export default function MatchAdminPage() {
     });
   }, [teamContracts, match]);
 
+  const { data: homeContracts } = useQuery({
+    queryKey: ["player-contracts-home", match?.homeTeamId],
+    queryFn: () =>
+      match
+        ? playerContractsService.getContracts({ teamId: match.homeTeamId })
+        : Promise.resolve([]),
+    enabled: !!match,
+  });
+
+  const { data: awayContracts } = useQuery({
+    queryKey: ["player-contracts-away", match?.awayTeamId],
+    queryFn: () =>
+      match
+        ? playerContractsService.getContracts({ teamId: match.awayTeamId })
+        : Promise.resolve([]),
+    enabled: !!match,
+  });
+
+  const homeEligibleContracts = useMemo(() => {
+    if (!match || !homeContracts) return [];
+    const matchDate = new Date(match.matchDate).toISOString().slice(0, 10);
+    return homeContracts.filter((contract) => {
+      const startsBeforeOrOnMatch = contract.startDate <= matchDate;
+      const endsAfterOrOnMatch =
+        !contract.endDate || contract.endDate >= matchDate;
+      return startsBeforeOrOnMatch && endsAfterOrOnMatch;
+    });
+  }, [homeContracts, match]);
+
+  const awayEligibleContracts = useMemo(() => {
+    if (!match || !awayContracts) return [];
+    const matchDate = new Date(match.matchDate).toISOString().slice(0, 10);
+    return awayContracts.filter((contract) => {
+      const startsBeforeOrOnMatch = contract.startDate <= matchDate;
+      const endsAfterOrOnMatch =
+        !contract.endDate || contract.endDate >= matchDate;
+      return startsBeforeOrOnMatch && endsAfterOrOnMatch;
+    });
+  }, [awayContracts, match]);
+
   const updateMatch = useMutation({
     mutationFn: (payload: any) =>
       matchesService.updateMatch(matchId, payload),
@@ -86,13 +177,20 @@ export default function MatchAdminPage() {
       setEventError(null);
     },
     onError: (error) => {
-      if (axios.isAxiosError(error)) {
-        setEventError(
-          error.response?.data?.error ?? "Failed to add event",
-        );
-        return;
-      }
-      setEventError("Failed to add event");
+      setEventError(getApiErrorMessage(error, "Failed to add event"));
+    },
+  });
+
+  const saveLineup = useMutation({
+    mutationFn: lineupsService.createLineup,
+    onSuccess: () => {
+      setLineupError(null);
+      setLineupSuccess("Lineup saved successfully.");
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] });
+    },
+    onError: (error) => {
+      setLineupError(getApiErrorMessage(error, "Failed to save lineup."));
+      setLineupSuccess(null);
     },
   });
 
@@ -176,6 +274,82 @@ export default function MatchAdminPage() {
       eventType,
       minute: match.currentMinute ?? 0,
       playerId: selectedPlayerId,
+    });
+  };
+
+  const updateTeamLineup = (
+    team: "home" | "away",
+    playerId: string,
+    patch: Partial<{ selected: boolean; position: string; jerseyNumber?: number }>,
+    defaults: { position: string; jerseyNumber?: number },
+  ) => {
+    if (team === "home") {
+      setHomeLineup((prev) => {
+        const current = prev[playerId] ?? {
+          selected: false,
+          position: defaults.position,
+          jerseyNumber: defaults.jerseyNumber,
+        };
+        return {
+          ...prev,
+          [playerId]: { ...current, ...patch },
+        };
+      });
+      return;
+    }
+
+    setAwayLineup((prev) => {
+      const current = prev[playerId] ?? {
+        selected: false,
+        position: defaults.position,
+        jerseyNumber: defaults.jerseyNumber,
+      };
+      return {
+        ...prev,
+        [playerId]: { ...current, ...patch },
+      };
+    });
+  };
+
+  const buildLineupPayload = (
+    contracts: PlayerContract[],
+    lineupState: Record<string, { selected: boolean; position: string; jerseyNumber?: number }>,
+  ) => {
+    return contracts
+      .filter((contract) => lineupState[contract.playerId]?.selected)
+      .map((contract) => {
+        const state = lineupState[contract.playerId];
+        return {
+          playerId: contract.playerId,
+          position: (state?.position || contract.position || "UNK").trim(),
+          isStarting: true,
+          jerseyNumber: state?.jerseyNumber ?? contract.jerseyNumber ?? undefined,
+        };
+      });
+  };
+
+  const submitLineup = (team: "home" | "away") => {
+    if (match.status !== "scheduled") {
+      setLineupError("Lineups can only be saved before kickoff.");
+      setLineupSuccess(null);
+      return;
+    }
+
+    const isHome = team === "home";
+    const contracts = isHome ? homeEligibleContracts : awayEligibleContracts;
+    const state = isHome ? homeLineup : awayLineup;
+    const payloadPlayers = buildLineupPayload(contracts, state);
+
+    if (payloadPlayers.length !== 11) {
+      setLineupError("Each team must have exactly 11 starters selected.");
+      setLineupSuccess(null);
+      return;
+    }
+
+    saveLineup.mutate({
+      matchId,
+      teamId: isHome ? match.homeTeamId : match.awayTeamId,
+      players: payloadPlayers,
     });
   };
 
@@ -295,6 +469,234 @@ export default function MatchAdminPage() {
           {eventError}
         </div>
       ) : null}
+
+      {/* LINEUPS */}
+      {canControl && (
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-5">
+          <div className="flex items-center justify-between gap-4">
+            <h3 className="font-bold text-slate-100">Team Lineups</h3>
+            <span className="text-xs text-slate-400">
+              Select exactly 11 starters per team
+            </span>
+          </div>
+
+          {lineupError ? (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+              {lineupError}
+            </div>
+          ) : null}
+
+          {lineupSuccess ? (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+              {lineupSuccess}
+            </div>
+          ) : null}
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="rounded-xl border border-slate-700 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="font-semibold text-slate-100">{match.homeTeam.name}</p>
+                <p className="text-xs text-slate-400">
+                  Starters:{" "}
+                  {
+                    homeEligibleContracts.filter(
+                      (contract) => homeLineup[contract.playerId]?.selected,
+                    ).length
+                  }
+                  /11
+                </p>
+              </div>
+
+              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                {homeEligibleContracts.map((contract) => {
+                  const state = homeLineup[contract.playerId];
+                  const selected = state?.selected ?? false;
+                  const position = state?.position ?? contract.position ?? "";
+                  const jerseyNumber =
+                    state?.jerseyNumber ?? contract.jerseyNumber ?? undefined;
+
+                  return (
+                    <div
+                      key={contract.id}
+                      className="grid grid-cols-[auto_1fr_90px_70px] items-center gap-2 rounded-lg bg-slate-800/60 p-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(e) =>
+                          updateTeamLineup(
+                            "home",
+                            contract.playerId,
+                            { selected: e.target.checked },
+                            {
+                              position: contract.position,
+                              jerseyNumber: contract.jerseyNumber ?? undefined,
+                            },
+                          )
+                        }
+                        className="h-4 w-4"
+                      />
+                      <p className="truncate text-sm text-slate-200">
+                        {contract.player?.fullName ?? contract.playerId}
+                      </p>
+                      <input
+                        value={position}
+                        onChange={(e) =>
+                          updateTeamLineup(
+                            "home",
+                            contract.playerId,
+                            { position: e.target.value },
+                            {
+                              position: contract.position,
+                              jerseyNumber: contract.jerseyNumber ?? undefined,
+                            },
+                          )
+                        }
+                        className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        placeholder="POS"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={jerseyNumber ?? ""}
+                        onChange={(e) =>
+                          updateTeamLineup(
+                            "home",
+                            contract.playerId,
+                            {
+                              jerseyNumber: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            },
+                            {
+                              position: contract.position,
+                              jerseyNumber: contract.jerseyNumber ?? undefined,
+                            },
+                          )
+                        }
+                        className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        placeholder="#"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4">
+                <PrimaryButton
+                  onClick={() => submitLineup("home")}
+                  loading={saveLineup.isPending}
+                  disabled={match.status !== "scheduled"}
+                >
+                  Save Home Lineup
+                </PrimaryButton>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-700 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="font-semibold text-slate-100">{match.awayTeam.name}</p>
+                <p className="text-xs text-slate-400">
+                  Starters:{" "}
+                  {
+                    awayEligibleContracts.filter(
+                      (contract) => awayLineup[contract.playerId]?.selected,
+                    ).length
+                  }
+                  /11
+                </p>
+              </div>
+
+              <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                {awayEligibleContracts.map((contract) => {
+                  const state = awayLineup[contract.playerId];
+                  const selected = state?.selected ?? false;
+                  const position = state?.position ?? contract.position ?? "";
+                  const jerseyNumber =
+                    state?.jerseyNumber ?? contract.jerseyNumber ?? undefined;
+
+                  return (
+                    <div
+                      key={contract.id}
+                      className="grid grid-cols-[auto_1fr_90px_70px] items-center gap-2 rounded-lg bg-slate-800/60 p-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(e) =>
+                          updateTeamLineup(
+                            "away",
+                            contract.playerId,
+                            { selected: e.target.checked },
+                            {
+                              position: contract.position,
+                              jerseyNumber: contract.jerseyNumber ?? undefined,
+                            },
+                          )
+                        }
+                        className="h-4 w-4"
+                      />
+                      <p className="truncate text-sm text-slate-200">
+                        {contract.player?.fullName ?? contract.playerId}
+                      </p>
+                      <input
+                        value={position}
+                        onChange={(e) =>
+                          updateTeamLineup(
+                            "away",
+                            contract.playerId,
+                            { position: e.target.value },
+                            {
+                              position: contract.position,
+                              jerseyNumber: contract.jerseyNumber ?? undefined,
+                            },
+                          )
+                        }
+                        className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        placeholder="POS"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        value={jerseyNumber ?? ""}
+                        onChange={(e) =>
+                          updateTeamLineup(
+                            "away",
+                            contract.playerId,
+                            {
+                              jerseyNumber: e.target.value
+                                ? Number(e.target.value)
+                                : undefined,
+                            },
+                            {
+                              position: contract.position,
+                              jerseyNumber: contract.jerseyNumber ?? undefined,
+                            },
+                          )
+                        }
+                        className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200"
+                        placeholder="#"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4">
+                <PrimaryButton
+                  onClick={() => submitLineup("away")}
+                  loading={saveLineup.isPending}
+                  disabled={match.status !== "scheduled"}
+                >
+                  Save Away Lineup
+                </PrimaryButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* INCIDENT PANEL */}
       {canControl && match.status !== "scheduled" && (
