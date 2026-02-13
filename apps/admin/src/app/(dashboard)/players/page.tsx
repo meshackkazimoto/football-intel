@@ -50,6 +50,7 @@ function slugify(value: string): string {
 export default function PlayersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [contractSeasonId, setContractSeasonId] = useState("");
   const [contractTeamId, setContractTeamId] = useState("");
@@ -101,6 +102,15 @@ export default function PlayersPage() {
     resolver: zodResolver(createPlayerSchema),
   });
 
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    reset: resetEdit,
+    formState: { errors: editErrors },
+  } = useForm<CreatePlayerInput>({
+    resolver: zodResolver(createPlayerSchema),
+  });
+
   const createMutation = useMutation({
     mutationFn: playersService.createPlayer,
     onSuccess: () => {
@@ -113,6 +123,25 @@ export default function PlayersPage() {
       setActionError(
         getApiErrorMessage(err, "Failed to create player."),
       );
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: CreatePlayerInput;
+    }) => playersService.updatePlayer(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["players"] });
+      setEditingPlayer(null);
+      resetEdit();
+      setActionError(null);
+    },
+    onError: (err) => {
+      setActionError(getApiErrorMessage(err, "Failed to update player."));
     },
   });
 
@@ -188,6 +217,50 @@ export default function PlayersPage() {
       lastName: derivedLastName,
       slug: derivedSlug,
     });
+  };
+
+  const onEditSubmit = (formData: CreatePlayerInput) => {
+    if (!editingPlayer) return;
+
+    const name = formData.fullName.trim();
+    const nameParts = name.split(/\s+/).filter(Boolean);
+    const derivedFirstName = formData.firstName?.trim() || nameParts[0] || "Unknown";
+    const derivedLastName =
+      formData.lastName?.trim() ||
+      nameParts.slice(1).join(" ") ||
+      "Unknown";
+    const derivedSlug = (formData.slug?.trim() || slugify(name)) || "unknown-player";
+
+    updateMutation.mutate({
+      id: editingPlayer.id,
+      input: {
+        ...formData,
+        fullName: name,
+        firstName: derivedFirstName,
+        lastName: derivedLastName,
+        slug: derivedSlug,
+      },
+    });
+  };
+
+  const openEditPlayer = (player: Player) => {
+    setEditingPlayer(player);
+    setActionError(null);
+    resetEdit({
+      fullName: player.fullName,
+      firstName: player.firstName ?? "",
+      lastName: player.lastName ?? "",
+      slug: slugify(player.fullName),
+      dateOfBirth: player.dateOfBirth ?? "",
+      nationalityId: player.nationality?.id ?? "",
+      preferredFoot: player.preferredFoot ?? undefined,
+      height: player.height ?? undefined,
+    });
+  };
+
+  const closeEditPlayer = () => {
+    setEditingPlayer(null);
+    resetEdit();
   };
 
   const openManageContracts = (player: Player) => {
@@ -361,10 +434,10 @@ export default function PlayersPage() {
               <TableRow>
                 {[
                   "Player",
-                  "Club",
-                  "Position",
                   "Nationality",
-                  "Jersey",
+                  "Preferred Foot",
+                  "Height",
+                  "Created",
                   "Actions",
                 ].map((h) => (
                   <TableHead key={h}>{h}</TableHead>
@@ -404,19 +477,29 @@ export default function PlayersPage() {
                       </div>
                     </TableCell>
 
-                    <TableCell className="text-slate-300">{"—"}</TableCell>
-
-                    <TableCell className="text-slate-400">{"—"}</TableCell>
-
                     <TableCell className="text-slate-400">
                       {player.nationality?.name ?? "-"}
                     </TableCell>
 
-                    <TableCell className="text-slate-400">{"—"}</TableCell>
+                    <TableCell className="text-slate-400">
+                      {player.preferredFoot ?? "-"}
+                    </TableCell>
+
+                    <TableCell className="text-slate-400">
+                      {player.height ? `${player.height} cm` : "-"}
+                    </TableCell>
+
+                    <TableCell className="text-slate-400">
+                      {new Date(player.createdAt).toLocaleDateString()}
+                    </TableCell>
 
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <button className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500">
+                        <button
+                          onClick={() => openEditPlayer(player)}
+                          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500"
+                          title="Edit player"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
@@ -577,6 +660,84 @@ export default function PlayersPage() {
             </div>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!editingPlayer}
+        onClose={closeEditPlayer}
+        title={editingPlayer ? `Edit Player: ${editingPlayer.fullName}` : undefined}
+      >
+        <form
+          onSubmit={handleSubmitEdit(onEditSubmit)}
+          className="grid grid-cols-2 gap-4"
+        >
+          <div className="col-span-2">
+            <FormInput
+              label="Full Name *"
+              {...registerEdit("fullName")}
+              error={editErrors.fullName}
+            />
+          </div>
+
+          <FormInput
+            label="First Name"
+            {...registerEdit("firstName")}
+            error={editErrors.firstName}
+          />
+
+          <FormInput
+            label="Last Name"
+            {...registerEdit("lastName")}
+            error={editErrors.lastName}
+          />
+
+          <FormInput
+            label="Date of Birth"
+            type="date"
+            {...registerEdit("dateOfBirth")}
+            error={editErrors.dateOfBirth}
+          />
+
+          <FormSelect
+            label="Nationality"
+            {...registerEdit("nationalityId")}
+            error={editErrors.nationalityId}
+            options={
+              nationalities?.data.map((country) => ({
+                label: `${country.name} (${country.code})`,
+                value: country.id,
+              })) ?? []
+            }
+          />
+
+          <FormSelect
+            label="Preferred Foot"
+            {...registerEdit("preferredFoot")}
+            options={[
+              { label: "Left", value: "left" },
+              { label: "Right", value: "right" },
+              { label: "Both", value: "both" },
+            ]}
+            error={editErrors.preferredFoot}
+          />
+
+          <FormInput
+            label="Height (cm)"
+            type="number"
+            {...registerEdit("height", { valueAsNumber: true })}
+            error={editErrors.height}
+          />
+
+          <div className="col-span-2 flex gap-3">
+            <PrimaryButton type="submit" loading={updateMutation.isPending}>
+              Save Changes
+            </PrimaryButton>
+
+            <SecondaryButton type="button" onClick={closeEditPlayer}>
+              Cancel
+            </SecondaryButton>
+          </div>
+        </form>
       </Modal>
     </div>
   );
