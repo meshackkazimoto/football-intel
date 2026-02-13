@@ -37,6 +37,7 @@ import manageStadiums from "./manage-stadiums";
 import managePlayerContracts from "./manage-player-contracts";
 import manageLeagues from "./manage-leagues";
 import manageStandings from "./manage-standings";
+import { isScrapingEnabled } from "src/config/features";
 
 const app = new Hono<{
   Variables: {
@@ -88,6 +89,15 @@ app.route("/stadiums", manageStadiums);
 app.route("/standings", manageStandings);
 
 app.post("/ingest", createRateLimiter(20, 60), async (c) => {
+  if (!isScrapingEnabled) {
+    return c.json(
+      {
+        error: "Scraping and ingestion are temporarily disabled",
+      },
+      503,
+    );
+  }
+
   const body = await c.req.json();
 
   const [row] = await db
@@ -103,6 +113,15 @@ app.post("/ingest", createRateLimiter(20, 60), async (c) => {
 });
 
 app.post("/verify/:id", async (c) => {
+  if (!isScrapingEnabled) {
+    return c.json(
+      {
+        error: "Scraping and ingestion are temporarily disabled",
+      },
+      503,
+    );
+  }
+
   const id = c.req.param("id");
   const body = await c.req.json();
 

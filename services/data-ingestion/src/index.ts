@@ -2,7 +2,18 @@ import { runLocalLeagueScraper } from "./sources/local-league";
 import { scrapeLigiKuuClubs, scrapeLigiKuuFixtures } from "./sources/ligikuu";
 import { logger } from "@football-intel/logger";
 
+function isScrapingEnabled(): boolean {
+  const value = process.env.ENABLE_SCRAPING;
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
 async function runScrapers() {
+  if (!isScrapingEnabled()) {
+    logger.warn("Scraping is disabled. Skipping scraper run.");
+    return;
+  }
+
   logger.info("Starting scheduled scraper run...");
   try {
     // Run generic local league scraper

@@ -90,9 +90,6 @@ export default function MatchAdminPage() {
     return () => source.close();
   }, [match?.status, matchId]);
 
-  /* -----------------------------------------------------
-     AUTO MINUTE TICKER
-  ----------------------------------------------------- */
   useEffect(() => {
     if (!autoTicker || match?.status !== "live") return;
 
@@ -116,14 +113,13 @@ export default function MatchAdminPage() {
   const canControl =
     CURRENT_ROLE === "ADMIN" || CURRENT_ROLE === "REFEREE";
 
-  /* -----------------------------------------------------
-     STATUS ACTIONS
-  ----------------------------------------------------- */
   const startMatch = () =>
     updateMatch.mutate({
       status: "live",
       currentMinute: 0,
       period: "1H",
+      homeScore: 0,
+      awayScore: 0,
     });
 
   const halfTime = () =>
@@ -147,9 +143,6 @@ export default function MatchAdminPage() {
       period: "FT",
     });
 
-  /* -----------------------------------------------------
-     EVENT / INCIDENT HANDLER
-  ----------------------------------------------------- */
   const pushEvent = (eventType: string) => {
     if (!selectedTeamId) return;
 

@@ -21,6 +21,16 @@ const HISTORICAL_SEASONS = [
 ];
 
 async function backfillHistory() {
+  const value = process.env.ENABLE_SCRAPING;
+  const enabled = value
+    ? ["1", "true", "yes", "on"].includes(value.toLowerCase())
+    : false;
+
+  if (!enabled) {
+    logger.warn("Scraping is disabled. Backfill aborted.");
+    return;
+  }
+
   logger.info("Starting historical backfill for Tanzanian Football...");
 
   // 1. Ensure League exists

@@ -55,7 +55,11 @@ export const createMatchSchema = z.object({
   seasonId: z.string().uuid(),
   homeTeamId: z.string().uuid(),
   awayTeamId: z.string().uuid(),
-  matchDate: z.string().datetime(),
+  matchDate: z
+      .string()
+      .min(1, "Match date is required")
+      .transform((v) => new Date(v).toISOString())
+      .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid datetime"),
   venue: z.string().max(200).optional(),
 });
 
