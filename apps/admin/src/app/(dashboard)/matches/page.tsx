@@ -170,6 +170,8 @@ export default function MatchesPage() {
       half_time: "bg-amber-500/10 text-amber-400 border-amber-500/30",
       finished: "bg-slate-500/10 text-slate-400 border-slate-500/30",
       postponed: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+      abandoned: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+      cancelled: "bg-zinc-500/10 text-zinc-300 border-zinc-500/30",
     };
     return colors[status];
   };
@@ -209,6 +211,8 @@ export default function MatchesPage() {
             <option value="half_time">Half Time</option>
             <option value="finished">Finished</option>
             <option value="postponed">Postponed</option>
+            <option value="abandoned">Abandoned</option>
+            <option value="cancelled">Cancelled</option>
           </select>
 
           <PrimaryButton onClick={() => setShowCreateForm(true)}>

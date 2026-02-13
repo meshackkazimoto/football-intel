@@ -49,6 +49,9 @@ export function MatchCard({ match }: MatchCardProps) {
   const isFinished = match.status === 'finished';
   const isLive = match.status === 'live';
   const isHalftime = match.status === 'half_time';
+  const isPostponed = match.status === 'postponed';
+  const isAbandoned = match.status === 'abandoned';
+  const isCancelled = match.status === 'cancelled';
   return (
     <Pressable
       onPress={() => router.push(`/match/${match.id}`)}
@@ -84,6 +87,24 @@ export function MatchCard({ match }: MatchCardProps) {
           {isFinished && (
             <View style={styles.statusBadge}>
               <ThemedText style={styles.statusText}>FT</ThemedText>
+            </View>
+          )}
+
+          {isPostponed && (
+            <View style={styles.statusBadge}>
+              <ThemedText style={styles.statusText}>POSTP</ThemedText>
+            </View>
+          )}
+
+          {isAbandoned && (
+            <View style={styles.statusBadge}>
+              <ThemedText style={styles.statusText}>ABND</ThemedText>
+            </View>
+          )}
+
+          {isCancelled && (
+            <View style={styles.statusBadge}>
+              <ThemedText style={styles.statusText}>CANC</ThemedText>
             </View>
           )}
         </View>

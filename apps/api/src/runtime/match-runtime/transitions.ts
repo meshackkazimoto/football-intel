@@ -1,6 +1,7 @@
 import { db } from "@football-intel/db/src/client";
 import { matches } from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
+import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { RuntimeMatch } from "./types";
 
 const toPositiveInt = (value: string | undefined, fallback: number): number => {
@@ -47,7 +48,7 @@ export async function handleTransitions(match: RuntimeMatch) {
   }
 
   if (minute >= SECOND_HALF_AUTO_END_MINUTE && match.period === "2H") {
-    await db
+    const [updated] = await db
       .update(matches)
       .set({
         status: "finished",
@@ -55,6 +56,19 @@ export async function handleTransitions(match: RuntimeMatch) {
         currentMinute: minute,
         endedAt: new Date(),
       })
-      .where(eq(matches.id, match.id));
+      .where(eq(matches.id, match.id))
+      .returning({
+        id: matches.id,
+        seasonId: matches.seasonId,
+      });
+
+    if (updated) {
+      await statsQueue.add(StatsJobs.RECOMPUTE_STATS, {
+        matchId: updated.id,
+      });
+      await statsQueue.add(StatsJobs.RECOMPUTE_STANDINGS, {
+        seasonId: updated.seasonId,
+      });
+    }
   }
 }

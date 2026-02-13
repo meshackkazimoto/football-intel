@@ -52,6 +52,12 @@ function formatStatus(match: MatchDetails) {
   if (match.status === 'postponed') {
     return 'Postponed';
   }
+  if (match.status === 'abandoned') {
+    return 'Abandoned';
+  }
+  if (match.status === 'cancelled') {
+    return 'Cancelled';
+  }
 
   return formatDateTime(match.matchDate);
 }
@@ -61,6 +67,8 @@ function statusColor(status: MatchDetails['status']) {
   if (status === 'half_time') return '#f59e0b';
   if (status === 'finished') return '#16a34a';
   if (status === 'postponed') return '#6b7280';
+  if (status === 'abandoned') return '#f97316';
+  if (status === 'cancelled') return '#6b7280';
   return '#6b7280';
 }
 

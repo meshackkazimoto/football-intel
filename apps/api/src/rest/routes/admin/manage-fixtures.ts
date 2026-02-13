@@ -99,9 +99,39 @@ app.patch("/:id", enforceMatchUnlocked(), async (c) => {
     }
   }
 
-  if (body.status === "finished" && match.status !== "live") {
+  if (
+    body.status === "finished" &&
+    match.status !== "live" &&
+    match.status !== "half_time"
+  ) {
     return c.json(
-      { error: "Only live matches can be finished" },
+      { error: "Only live or half-time matches can be finished" },
+      409,
+    );
+  }
+
+  if (body.status === "finished") {
+    const finalHomeScore = body.homeScore ?? match.homeScore;
+    const finalAwayScore = body.awayScore ?? match.awayScore;
+
+    if (finalHomeScore === null || finalAwayScore === null) {
+      return c.json(
+        {
+          error:
+            "Cannot finish match without both homeScore and awayScore; set final score first.",
+        },
+        409,
+      );
+    }
+  }
+
+  if (
+    body.status === "abandoned" &&
+    match.status !== "live" &&
+    match.status !== "half_time"
+  ) {
+    return c.json(
+      { error: "Only live or half-time matches can be abandoned" },
       409,
     );
   }
@@ -112,7 +142,12 @@ app.patch("/:id", enforceMatchUnlocked(), async (c) => {
     homeScore: body.homeScore,
     awayScore: body.awayScore,
     currentMinute: body.currentMinute,
-    period: body.period,
+    period:
+      body.status === "finished" ||
+      body.status === "abandoned" ||
+      body.status === "cancelled"
+        ? "FT"
+        : body.period,
     matchDate: body.matchDate ? new Date(body.matchDate) : undefined,
     startedAt:
       body.status === "live" && !match.startedAt
@@ -121,7 +156,9 @@ app.patch("/:id", enforceMatchUnlocked(), async (c) => {
           ? new Date(body.startedAt)
           : undefined,
     endedAt:
-      body.status === "finished"
+      body.status === "finished" ||
+      body.status === "abandoned" ||
+      body.status === "cancelled"
         ? new Date()
         : body.endedAt
           ? new Date(body.endedAt)

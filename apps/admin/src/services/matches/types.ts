@@ -5,7 +5,9 @@ export type MatchStatus =
   | "live"
   | "half_time"
   | "finished"
-  | "postponed";
+  | "postponed"
+  | "abandoned"
+  | "cancelled";
 
 export type MatchPeriod = "1H" | "HT" | "2H" | "FT";
 
@@ -94,7 +96,15 @@ export const createMatchSchema = z.object({
 
 export const updateMatchSchema = z.object({
   status: z
-    .enum(["scheduled", "live", "half_time", "finished", "postponed"])
+    .enum([
+      "scheduled",
+      "live",
+      "half_time",
+      "finished",
+      "postponed",
+      "abandoned",
+      "cancelled",
+    ])
     .optional(),
   matchDate: z.string().datetime().optional(),
   venue: z.string().max(200).optional(),

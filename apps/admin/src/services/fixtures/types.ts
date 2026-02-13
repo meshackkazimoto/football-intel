@@ -3,14 +3,18 @@ export type MatchStatus =
   | "live"
   | "half_time"
   | "finished"
-  | "postponed";
+  | "postponed"
+  | "abandoned"
+  | "cancelled";
 
 export type FixtureStatus =
   | "scheduled"
   | "live"
   | "half_time"
   | "finished"
-  | "postponed";
+  | "postponed"
+  | "abandoned"
+  | "cancelled";
 
 export interface Team {
   id: string;

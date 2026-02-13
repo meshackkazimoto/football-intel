@@ -39,9 +39,12 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
     const now = new Date();
 
     const allowedTransitions: Record<string, string[]> = {
-        scheduled: ["live"],
-        live: ["half_time", "finished"],
-        half_time: ["live", "finished"],
+        scheduled: ["live", "postponed", "cancelled"],
+        live: ["half_time", "finished", "abandoned", "postponed"],
+        half_time: ["live", "finished", "abandoned", "postponed"],
+        postponed: ["scheduled", "live", "cancelled"],
+        abandoned: [],
+        cancelled: [],
         finished: [],
     };
 
@@ -50,6 +53,18 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
             { error: `Invalid status transition from ${match.status} to ${status}` },
             400,
         );
+    }
+
+    if (status === "finished") {
+        if (match.homeScore === null || match.awayScore === null) {
+            return c.json(
+                {
+                    error:
+                        "Cannot finish match without both homeScore and awayScore; set final score first.",
+                },
+                409,
+            );
+        }
     }
 
     const update: Partial<typeof matches.$inferInsert> = {
@@ -70,10 +85,12 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
         update.period = "2H";
     }
 
-    if (status === "finished") {
+    if (status === "finished" || status === "abandoned" || status === "cancelled") {
         update.endedAt = now;
         update.period = "FT";
-        update.currentMinute ??= 90;
+        if (status === "finished") {
+          update.currentMinute ??= 90;
+        }
     }
 
     await db

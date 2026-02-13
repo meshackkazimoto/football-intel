@@ -8,6 +8,8 @@ export const MatchStatusSchema = z.object({
     "half_time",
     "finished",
     "postponed",
+    "abandoned",
+    "cancelled",
   ]),
   currentMinute: z.number().int().min(0).max(130).optional(),
 });

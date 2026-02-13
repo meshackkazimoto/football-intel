@@ -37,7 +37,17 @@ export const teamsService = {
 
   getMatches: async (
     id: string,
-    params?: { status?: 'scheduled' | 'finished' | 'live' | 'half_time'; limit?: number },
+    params?: {
+      status?:
+        | 'scheduled'
+        | 'finished'
+        | 'live'
+        | 'half_time'
+        | 'postponed'
+        | 'abandoned'
+        | 'cancelled';
+      limit?: number;
+    },
   ): Promise<TeamMatch[]> => {
     const { data } = await api.get<TeamMatch[]>(`/teams/${id}/matches`, { params });
     return data;

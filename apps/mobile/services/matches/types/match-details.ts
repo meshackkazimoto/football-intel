@@ -2,7 +2,7 @@ import type { MatchStatus } from './match-list';
 
 export interface MatchDetails {
   id: string;
-  status: MatchStatus | 'postponed';
+  status: MatchStatus;
   minute: number | null;
   period: '1H' | 'HT' | '2H' | 'FT' | null;
   matchDate: string;

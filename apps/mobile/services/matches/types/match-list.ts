@@ -1,6 +1,13 @@
 import type { Team } from './match-base';
 
-export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'half_time';
+export type MatchStatus =
+  | 'scheduled'
+  | 'live'
+  | 'finished'
+  | 'half_time'
+  | 'postponed'
+  | 'abandoned'
+  | 'cancelled';
 
 export interface MatchListItem {
   id: string;

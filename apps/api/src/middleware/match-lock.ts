@@ -30,7 +30,11 @@ export const enforceMatchUnlocked = () =>
       return c.json({ error: "Match not found" }, 404);
     }
 
-    if (match.status === "finished") {
+    if (
+      match.status === "finished" ||
+      match.status === "abandoned" ||
+      match.status === "cancelled"
+    ) {
       const user = c.get("user");
 
       if (user?.role === "ADMIN") {

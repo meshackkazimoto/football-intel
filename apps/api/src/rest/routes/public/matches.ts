@@ -549,7 +549,7 @@ app.get("/live", createRateLimiter(100, 60), async (c) => {
 
   const data = await db.query.matches.findMany({
     where: and(
-      eq(matches.status, "live"),
+      or(eq(matches.status, "live"), eq(matches.status, "half_time")),
       seasonId ? eq(matches.seasonId, seasonId) : undefined
     ),
     with: {

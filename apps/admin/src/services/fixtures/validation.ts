@@ -23,6 +23,8 @@ export const updateFixtureSchema = z.object({
         "half_time",
         "finished",
         "postponed",
+        "abandoned",
+        "cancelled",
     ]).optional(),
 
     matchDate: z.string().datetime().optional(),
