@@ -72,7 +72,19 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
         ),
       )
     : minuteBasedSecond;
-  const referenceSecond = second ?? Math.max(minuteBasedSecond, elapsedSecond);
+
+  let referenceSecond = second ?? minuteBasedSecond;
+  if (second === undefined) {
+    if (match.startedAt && match.currentMinute !== null) {
+      const upperBound = minuteBasedSecond + 59;
+      referenceSecond = Math.min(
+        Math.max(minuteBasedSecond, elapsedSecond),
+        upperBound,
+      );
+    } else {
+      referenceSecond = Math.max(minuteBasedSecond, elapsedSecond);
+    }
+  }
 
   const active = await db.query.matchPossessions.findFirst({
     where: and(eq(matchPossessions.matchId, matchId), isNull(matchPossessions.endSecond)),
@@ -84,6 +96,10 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
   }
 
   let changed = false;
+
+  if (active && (!teamId || active.teamId !== teamId) && referenceSecond === active.startSecond) {
+    referenceSecond += 1;
+  }
 
   if (active && (!teamId || active.teamId !== teamId)) {
     await db

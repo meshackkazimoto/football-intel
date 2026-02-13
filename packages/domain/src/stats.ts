@@ -26,6 +26,11 @@ function getMatchReferenceSecond(match: {
     Math.floor((end.getTime() - match.startedAt.getTime()) / 1000),
   );
 
+  if (match.currentMinute !== null) {
+    const upperBound = minuteBased + 59;
+    return Math.min(Math.max(minuteBased, elapsed), upperBound);
+  }
+
   return Math.max(minuteBased, elapsed);
 }
 

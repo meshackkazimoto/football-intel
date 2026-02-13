@@ -771,18 +771,33 @@ export default function MatchAdminPage() {
             <PrimaryButton
               onClick={() => setPossessionTeam(match.homeTeamId)}
               loading={updatePossession.isPending}
+              className={
+                activePossession?.teamId === match.homeTeamId
+                  ? "ring-2 ring-emerald-300/80 bg-emerald-500"
+                  : undefined
+              }
             >
               {match.homeTeam.name} In Possession
             </PrimaryButton>
             <SecondaryButton
               onClick={() => setPossessionTeam(match.awayTeamId)}
               disabled={updatePossession.isPending}
+              className={
+                activePossession?.teamId === match.awayTeamId
+                  ? "border-sky-400 bg-sky-500/20 text-sky-300 ring-2 ring-sky-400/50"
+                  : undefined
+              }
             >
               {match.awayTeam.name} In Possession
             </SecondaryButton>
             <SecondaryButton
               onClick={() => setPossessionTeam(null)}
               disabled={updatePossession.isPending}
+              className={
+                !activePossession
+                  ? "border-amber-400 bg-amber-500/20 text-amber-300"
+                  : undefined
+              }
             >
               Stop Possession
             </SecondaryButton>
