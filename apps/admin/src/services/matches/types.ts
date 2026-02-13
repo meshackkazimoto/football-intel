@@ -25,6 +25,22 @@ interface MatchEventTeam {
   name: string;
 }
 
+interface MatchLineupPlayer {
+  id: string;
+  fullName: string;
+}
+
+interface MatchLineup {
+  id: string;
+  matchId: string;
+  teamId: string;
+  playerId: string;
+  position: string;
+  isStarting: boolean;
+  jerseyNumber: number | null;
+  player?: MatchLineupPlayer | null;
+}
+
 interface Event {
   id: string;
   matchId: string;
@@ -51,7 +67,8 @@ export interface Match {
   awayScore: number | null;
   currentMinute: number | null;
   period: MatchPeriod | null;
-  events: Event[] | []
+  events: Event[] | [];
+  lineups?: MatchLineup[] | [];
 }
 
 export interface MatchesResponse {

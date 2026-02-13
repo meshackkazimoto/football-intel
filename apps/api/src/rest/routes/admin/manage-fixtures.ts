@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { Session, User } from "lucia";
 import { db } from "@football-intel/db/src/client";
-import { matchEvents, matches, teams, seasons } from "@football-intel/db/src/schema/core";
+import { matchEvents, matchLineups, matches, teams, seasons } from "@football-intel/db/src/schema/core";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   createFixtureSchema,
@@ -200,6 +200,13 @@ app.get("/:id", async (c) => {
           team: true,
         },
         orderBy: [asc(matchEvents.minute), asc(matchEvents.createdAt)],
+      },
+      lineups: {
+        with: {
+          player: true,
+          team: true,
+        },
+        orderBy: [asc(matchLineups.teamId), asc(matchLineups.jerseyNumber)],
       },
       playerRatings: true
     },

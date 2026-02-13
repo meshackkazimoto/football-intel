@@ -2,6 +2,10 @@ export interface MatchStats {
   id: string;
   matchId: string;
   teamId: string;
+  team?: {
+    id: string;
+    name: string;
+  } | null;
 
   possession?: number;
   shotsOnTarget?: number;

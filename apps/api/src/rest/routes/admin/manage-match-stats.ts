@@ -18,6 +18,23 @@ const app = new Hono<{
 
 app.use("*", requireRole(["SUPER_ADMIN", "ADMIN", "MODERATOR"]));
 
+app.get("/", async (c) => {
+    const matchId = c.req.query("matchId");
+
+    if (!matchId) {
+        return c.json({ error: "matchId is required" }, 400);
+    }
+
+    const stats = await db.query.matchStats.findMany({
+        where: eq(matchStats.matchId, matchId),
+        with: {
+            team: true,
+        },
+    });
+
+    return c.json(stats);
+});
+
 app.post("/", enforceMatchUnlocked(), async (c) => {
     const body = await c.req.json();
     const parsed = MatchStatsSchema.safeParse(body);

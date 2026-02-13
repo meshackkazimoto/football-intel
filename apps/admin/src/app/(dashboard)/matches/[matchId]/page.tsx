@@ -9,12 +9,14 @@ import { matchesService } from "@/services/matches/matches.service";
 import { matchEventsService } from "@/services/match-events/match-events.service";
 import { playerContractsService } from "@/services/player-contracts/player-contracts.service";
 import { lineupsService } from "@/services/lineups/lineups.service";
+import { matchStatsService } from "@/services/match-stats/match-stats.service";
 
 import {
   Play,
   Pause,
   Square,
   Goal,
+  BarChart3,
   AlertTriangle,
   ShieldAlert,
   Repeat,
@@ -35,6 +37,7 @@ import { LiveMinutePulse } from "@/components/match/live-minute-pulse";
 import type { Match } from "@/services/matches/types";
 import type { MatchEventType } from "@/services/match-events/types";
 import type { PlayerContract } from "@/services/player-contracts/types";
+import type { MatchStats } from "@/services/match-stats/types";
 
 const CURRENT_ROLE: "ADMIN" | "REFEREE" | "VIEWER" = "REFEREE";
 
@@ -79,22 +82,64 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function formatEventLabel(eventType: string): string {
+  if (eventType === "goal") return "GOAL!!!";
+  if (eventType === "own_goal") return "OWN GOAL";
+
+  return eventType
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+type TabKey = "overview" | "lineups" | "stats";
+
+type MatchStatsDraft = {
+  possession?: number;
+  shotsOnTarget?: number;
+  shotsOffTarget?: number;
+  corners?: number;
+  fouls?: number;
+  yellowCards?: number;
+  redCards?: number;
+  saves?: number;
+  passAccuracy?: number;
+};
+
+const EMPTY_STATS: MatchStatsDraft = {
+  possession: undefined,
+  shotsOnTarget: undefined,
+  shotsOffTarget: undefined,
+  corners: undefined,
+  fouls: undefined,
+  yellowCards: undefined,
+  redCards: undefined,
+  saves: undefined,
+  passAccuracy: undefined,
+};
+
 export default function MatchAdminPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const queryClient = useQueryClient();
 
   const [autoTicker, setAutoTicker] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [additionalMinutes, setAdditionalMinutes] = useState(1);
   const [eventError, setEventError] = useState<string | null>(null);
   const [lineupError, setLineupError] = useState<string | null>(null);
   const [lineupSuccess, setLineupSuccess] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [statsSuccess, setStatsSuccess] = useState<string | null>(null);
   const [homeLineup, setHomeLineup] = useState<
     Record<string, { selected: boolean; position: string; jerseyNumber?: number }>
   >({});
   const [awayLineup, setAwayLineup] = useState<
     Record<string, { selected: boolean; position: string; jerseyNumber?: number }>
   >({});
+  const [homeStatsDraft, setHomeStatsDraft] = useState<MatchStatsDraft>(EMPTY_STATS);
+  const [awayStatsDraft, setAwayStatsDraft] = useState<MatchStatsDraft>(EMPTY_STATS);
 
   const { data: match, isLoading } = useQuery({
     queryKey: ["match", matchId],
@@ -119,6 +164,11 @@ export default function MatchAdminPage() {
         ? playerContractsService.getContracts({ teamId: selectedTeamId })
         : Promise.resolve([]),
     enabled: !!selectedTeamId,
+  });
+
+  const { data: statsRows = [] } = useQuery({
+    queryKey: ["match-stats", matchId],
+    queryFn: () => matchStatsService.getStatsByMatch(matchId),
   });
 
   const eligiblePlayers = useMemo(() => {
@@ -205,6 +255,20 @@ export default function MatchAdminPage() {
     },
   });
 
+  const saveStats = useMutation({
+    mutationFn: matchStatsService.upsertStats,
+    onSuccess: () => {
+      setStatsError(null);
+      setStatsSuccess("Match stats saved.");
+      queryClient.invalidateQueries({ queryKey: ["match-stats", matchId] });
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] });
+    },
+    onError: (error) => {
+      setStatsError(getApiErrorMessage(error, "Failed to save match stats."));
+      setStatsSuccess(null);
+    },
+  });
+
   useEffect(() => {
     if (!match || match.status !== "live") return;
 
@@ -230,6 +294,41 @@ export default function MatchAdminPage() {
 
     return () => clearInterval(id);
   }, [autoTicker, match?.status, match?.currentMinute]);
+
+  const homeStats = useMemo(
+    () => statsRows.find((row: MatchStats) => row.teamId === match?.homeTeamId),
+    [statsRows, match?.homeTeamId],
+  );
+
+  const awayStats = useMemo(
+    () => statsRows.find((row: MatchStats) => row.teamId === match?.awayTeamId),
+    [statsRows, match?.awayTeamId],
+  );
+
+  useEffect(() => {
+    setHomeStatsDraft({
+      possession: homeStats?.possession,
+      shotsOnTarget: homeStats?.shotsOnTarget,
+      shotsOffTarget: homeStats?.shotsOffTarget,
+      corners: homeStats?.corners,
+      fouls: homeStats?.fouls,
+      yellowCards: homeStats?.yellowCards,
+      redCards: homeStats?.redCards,
+      saves: homeStats?.saves,
+      passAccuracy: homeStats?.passAccuracy,
+    });
+    setAwayStatsDraft({
+      possession: awayStats?.possession,
+      shotsOnTarget: awayStats?.shotsOnTarget,
+      shotsOffTarget: awayStats?.shotsOffTarget,
+      corners: awayStats?.corners,
+      fouls: awayStats?.fouls,
+      yellowCards: awayStats?.yellowCards,
+      redCards: awayStats?.redCards,
+      saves: awayStats?.saves,
+      passAccuracy: awayStats?.passAccuracy,
+    });
+  }, [homeStats, awayStats]);
 
   if (isLoading || !match) {
     return (
@@ -364,12 +463,77 @@ export default function MatchAdminPage() {
     });
   };
 
+  const applyAdditionalMinutes = (minutesToAdd: number) => {
+    if (match.status !== "live" && match.status !== "half_time") return;
+    if (!Number.isFinite(minutesToAdd) || minutesToAdd <= 0) return;
+
+    updateMatch.mutate({
+      currentMinute: (match.currentMinute ?? 0) + minutesToAdd,
+    });
+  };
+
+  const saveStatsForTeam = (team: "home" | "away") => {
+    if (match.status === "scheduled") {
+      setStatsError("Stats can only be updated after kickoff.");
+      setStatsSuccess(null);
+      return;
+    }
+
+    const isHome = team === "home";
+    const draft = isHome ? homeStatsDraft : awayStatsDraft;
+
+    saveStats.mutate({
+      matchId,
+      teamId: isHome ? match.homeTeamId : match.awayTeamId,
+      ...draft,
+    });
+  };
+
+  const updateStatsDraftField = (
+    team: "home" | "away",
+    field: keyof MatchStatsDraft,
+    value: string,
+  ) => {
+    const parsed = value.trim() === "" ? undefined : Number(value);
+    const nextValue = Number.isNaN(parsed as number) ? undefined : parsed;
+
+    if (team === "home") {
+      setHomeStatsDraft((prev) => ({ ...prev, [field]: nextValue }));
+      return;
+    }
+    setAwayStatsDraft((prev) => ({ ...prev, [field]: nextValue }));
+  };
+
   const sortedEvents = useMemo(() => {
     return [...(match.events ?? [])].sort((a, b) => {
       if (a.minute !== b.minute) return a.minute - b.minute;
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
   }, [match.events]);
+
+  const savedHomeLineup = useMemo(
+    () =>
+      (match.lineups ?? [])
+        .filter((lineup) => lineup.teamId === match.homeTeamId)
+        .sort((a, b) => {
+          const aNum = a.jerseyNumber ?? 999;
+          const bNum = b.jerseyNumber ?? 999;
+          return aNum - bNum;
+        }),
+    [match.lineups, match.homeTeamId],
+  );
+
+  const savedAwayLineup = useMemo(
+    () =>
+      (match.lineups ?? [])
+        .filter((lineup) => lineup.teamId === match.awayTeamId)
+        .sort((a, b) => {
+          const aNum = a.jerseyNumber ?? 999;
+          const bNum = b.jerseyNumber ?? 999;
+          return aNum - bNum;
+        }),
+    [match.lineups, match.awayTeamId],
+  );
 
   return (
     <div className="space-y-8">
@@ -390,7 +554,7 @@ export default function MatchAdminPage() {
           {match.homeScore ?? 0} : {match.awayScore ?? 0}
         </div>
 
-        {match.status === "live" && (
+        {(match.status === "live" || match.status === "half_time") && (
           <div className="flex items-center gap-2 text-emerald-400 font-bold">
             <Timer className="w-4 h-4" />
             <LiveMinutePulse minute={match.currentMinute ?? 0} />
@@ -398,8 +562,36 @@ export default function MatchAdminPage() {
         )}
       </div>
 
+      <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-2">
+        <div className="grid grid-cols-3 gap-2">
+          {([
+            { id: "overview", label: "Overview", icon: Timer },
+            { id: "lineups", label: "Lineups", icon: Users },
+            { id: "stats", label: "Stats", icon: BarChart3 },
+          ] as Array<{ id: TabKey; label: string; icon: any }>).map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                  active
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                    : "bg-slate-900/40 text-slate-300 border border-slate-700 hover:bg-slate-800/70"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* MATCH CONTROL */}
-      {canControl && (
+      {activeTab === "overview" && canControl && (
         <div className="flex gap-3 flex-wrap">
           {match.status === "scheduled" && (
             <PrimaryButton onClick={startMatch}>
@@ -433,7 +625,7 @@ export default function MatchAdminPage() {
       )}
 
       {/* AUTO TICKER */}
-      {canControl && match.status === "live" && (
+      {activeTab === "overview" && canControl && match.status === "live" && (
         <div className="flex items-center gap-2 text-slate-400">
           {autoTicker ? (
             <ToggleRight
@@ -450,8 +642,42 @@ export default function MatchAdminPage() {
         </div>
       )}
 
+      {activeTab === "overview" &&
+      canControl &&
+      (match.status === "live" || match.status === "half_time") ? (
+        <div className="rounded-2xl border border-slate-700 bg-slate-900 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-slate-100">Additional Time</h3>
+            <span className="text-xs text-slate-400">
+              Use for stoppage/injury time
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <SecondaryButton onClick={() => applyAdditionalMinutes(1)}>
+              +1 min
+            </SecondaryButton>
+            <SecondaryButton onClick={() => applyAdditionalMinutes(2)}>
+              +2 min
+            </SecondaryButton>
+            <SecondaryButton onClick={() => applyAdditionalMinutes(5)}>
+              +5 min
+            </SecondaryButton>
+            <input
+              type="number"
+              min={1}
+              value={additionalMinutes}
+              onChange={(e) => setAdditionalMinutes(Number(e.target.value) || 1)}
+              className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-200"
+            />
+            <PrimaryButton onClick={() => applyAdditionalMinutes(additionalMinutes)}>
+              Apply Minutes
+            </PrimaryButton>
+          </div>
+        </div>
+      ) : null}
+
       {/* TEAM & PLAYER PICKER */}
-      {canControl && match.status !== "scheduled" && (
+      {activeTab === "overview" && canControl && match.status !== "scheduled" && (
         <div className="grid grid-cols-2 gap-4">
           <FormSelect
             label="Team"
@@ -482,14 +708,79 @@ export default function MatchAdminPage() {
         </div>
       )}
 
-      {eventError ? (
+      {activeTab === "overview" && eventError ? (
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
           {eventError}
         </div>
       ) : null}
 
-      {/* LINEUPS */}
-      {canControl && (
+      {/* LINEUPS TAB */}
+      {activeTab === "lineups" && (
+        <div className="space-y-6">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-100">Saved Lineups</h3>
+              <span className="text-xs text-slate-400">
+                Official submitted starters
+              </span>
+            </div>
+
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-700 p-4">
+                <p className="mb-3 font-semibold text-slate-100">
+                  {match.homeTeam.name}
+                </p>
+                {savedHomeLineup.length === 0 ? (
+                  <p className="text-sm text-slate-400">No lineup submitted yet.</p>
+                ) : (
+                  <ul className="space-y-2 text-sm">
+                    {savedHomeLineup.map((entry) => (
+                      <li
+                        key={entry.id}
+                        className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2"
+                      >
+                        <span className="text-slate-200">
+                          {entry.player?.fullName ?? entry.playerId}
+                        </span>
+                        <span className="text-slate-400">
+                          {entry.position}
+                          {entry.jerseyNumber ? ` #${entry.jerseyNumber}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-slate-700 p-4">
+                <p className="mb-3 font-semibold text-slate-100">
+                  {match.awayTeam.name}
+                </p>
+                {savedAwayLineup.length === 0 ? (
+                  <p className="text-sm text-slate-400">No lineup submitted yet.</p>
+                ) : (
+                  <ul className="space-y-2 text-sm">
+                    {savedAwayLineup.map((entry) => (
+                      <li
+                        key={entry.id}
+                        className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2"
+                      >
+                        <span className="text-slate-200">
+                          {entry.player?.fullName ?? entry.playerId}
+                        </span>
+                        <span className="text-slate-400">
+                          {entry.position}
+                          {entry.jerseyNumber ? ` #${entry.jerseyNumber}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {canControl ? (
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-5">
           <div className="flex items-center justify-between gap-4">
             <h3 className="font-bold text-slate-100">Team Lineups</h3>
@@ -714,10 +1005,109 @@ export default function MatchAdminPage() {
             </div>
           </div>
         </div>
+          ) : null}
+      </div>
       )}
 
+      {activeTab === "stats" ? (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-slate-700 bg-slate-900 p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-100">Match Stats</h3>
+              <span className="text-xs text-slate-400">
+                Edit official team stats for this match
+              </span>
+            </div>
+
+            {statsError ? (
+              <div className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                {statsError}
+              </div>
+            ) : null}
+
+            {statsSuccess ? (
+              <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                {statsSuccess}
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-2">
+              <div className="rounded-xl border border-slate-700 p-4 space-y-4">
+                <h4 className="font-semibold text-slate-100">{match.homeTeam.name}</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { key: "possession", label: "Possession (%)", min: 0, max: 100 },
+                    { key: "shotsOnTarget", label: "Shots On Target", min: 0, max: undefined },
+                    { key: "shotsOffTarget", label: "Shots Off Target", min: 0, max: undefined },
+                    { key: "corners", label: "Corners", min: 0, max: undefined },
+                    { key: "fouls", label: "Fouls", min: 0, max: undefined },
+                    { key: "yellowCards", label: "Yellow Cards", min: 0, max: undefined },
+                    { key: "redCards", label: "Red Cards", min: 0, max: undefined },
+                    { key: "saves", label: "Saves", min: 0, max: undefined },
+                    { key: "passAccuracy", label: "Pass Accuracy (%)", min: 0, max: 100 },
+                  ] as Array<{ key: keyof MatchStatsDraft; label: string; min: number; max?: number }>).map((field) => (
+                    <label key={field.key} className="text-xs text-slate-400 space-y-1">
+                      <span>{field.label}</span>
+                      <input
+                        type="number"
+                        min={field.min}
+                        max={field.max}
+                        value={homeStatsDraft[field.key] ?? ""}
+                        onChange={(e) => updateStatsDraftField("home", field.key, e.target.value)}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <PrimaryButton
+                  onClick={() => saveStatsForTeam("home")}
+                  loading={saveStats.isPending}
+                >
+                  Save Home Stats
+                </PrimaryButton>
+              </div>
+
+              <div className="rounded-xl border border-slate-700 p-4 space-y-4">
+                <h4 className="font-semibold text-slate-100">{match.awayTeam.name}</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { key: "possession", label: "Possession (%)", min: 0, max: 100 },
+                    { key: "shotsOnTarget", label: "Shots On Target", min: 0, max: undefined },
+                    { key: "shotsOffTarget", label: "Shots Off Target", min: 0, max: undefined },
+                    { key: "corners", label: "Corners", min: 0, max: undefined },
+                    { key: "fouls", label: "Fouls", min: 0, max: undefined },
+                    { key: "yellowCards", label: "Yellow Cards", min: 0, max: undefined },
+                    { key: "redCards", label: "Red Cards", min: 0, max: undefined },
+                    { key: "saves", label: "Saves", min: 0, max: undefined },
+                    { key: "passAccuracy", label: "Pass Accuracy (%)", min: 0, max: 100 },
+                  ] as Array<{ key: keyof MatchStatsDraft; label: string; min: number; max?: number }>).map((field) => (
+                    <label key={field.key} className="text-xs text-slate-400 space-y-1">
+                      <span>{field.label}</span>
+                      <input
+                        type="number"
+                        min={field.min}
+                        max={field.max}
+                        value={awayStatsDraft[field.key] ?? ""}
+                        onChange={(e) => updateStatsDraftField("away", field.key, e.target.value)}
+                        className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-200"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <PrimaryButton
+                  onClick={() => saveStatsForTeam("away")}
+                  loading={saveStats.isPending}
+                >
+                  Save Away Stats
+                </PrimaryButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* INCIDENT PANEL */}
-      {canControl && match.status !== "scheduled" && (
+      {activeTab === "overview" && canControl && match.status !== "scheduled" && (
         <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 space-y-4">
           <h3 className="font-bold text-slate-100">
             Match Incidents
@@ -775,6 +1165,7 @@ export default function MatchAdminPage() {
       )}
 
       {/* TIMELINE */}
+      {activeTab === "overview" && (
       <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6">
         <h3 className="font-bold text-slate-100 mb-4">
           Match Timeline
@@ -789,7 +1180,7 @@ export default function MatchAdminPage() {
             {sortedEvents.map((e) => {
               const isHomeEvent = e.teamId === match.homeTeamId;
               const playerName = e.player?.fullName ?? e.playerId ?? "—";
-              const eventLabel = e.eventType.replace(/_/g, " ");
+              const eventLabel = formatEventLabel(e.eventType);
 
               return (
               <li
@@ -831,6 +1222,7 @@ export default function MatchAdminPage() {
           </ul>
         )}
       </div>
+      )}
     </div>
   );
 }

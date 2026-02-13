@@ -235,6 +235,30 @@ export const matchStats = pgTable(
   }),
 );
 
+export const matchPossessions = pgTable(
+  "match_possessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    matchId: uuid("match_id")
+      .references(() => matches.id)
+      .notNull(),
+    teamId: uuid("team_id")
+      .references(() => teams.id)
+      .notNull(),
+    startSecond: integer("start_second").notNull(),
+    endSecond: integer("end_second"),
+    source: varchar("source", { length: 20 }).default("manual").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    matchPossessionIdx: index("match_possession_idx").on(table.matchId),
+    openPossessionIdx: index("open_possession_idx").on(
+      table.matchId,
+      table.endSecond,
+    ),
+  }),
+);
+
 export const playerSeasonStats = pgTable(
   "player_season_stats",
   {
@@ -468,6 +492,7 @@ export const teamsRelations = relations(teams, ({ one, many }) => ({
   contracts: many(playerContracts),
   standings: many(leagueStandings),
   lineups: many(matchLineups),
+  possessions: many(matchPossessions),
 }));
 
 export const playersRelations = relations(players, ({ one, many }) => ({
@@ -515,6 +540,7 @@ export const matchesRelations = relations(matches, ({ one, many }) => ({
   events: many(matchEvents),
   lineups: many(matchLineups),
   stats: many(matchStats),
+  possessions: many(matchPossessions),
   prediction: one(matchPredictions),
   playerRatings: many(playerMatchRatings),
 }));
@@ -560,6 +586,20 @@ export const matchStatsRelations = relations(matchStats, ({ one }) => ({
     references: [teams.id],
   }),
 }));
+
+export const matchPossessionsRelations = relations(
+  matchPossessions,
+  ({ one }) => ({
+    match: one(matches, {
+      fields: [matchPossessions.matchId],
+      references: [matches.id],
+    }),
+    team: one(teams, {
+      fields: [matchPossessions.teamId],
+      references: [teams.id],
+    }),
+  }),
+);
 
 export const matchEventsRelations = relations(matchEvents, ({ one }) => ({
   match: one(matches, {
