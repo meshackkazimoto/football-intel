@@ -38,6 +38,14 @@ app.get("/", async (c) => {
   return c.json({ data });
 });
 
+app.get("/nationalities", async (c) => {
+  const data = await db.query.countries.findMany({
+    orderBy: (country, { asc }) => [asc(country.name)],
+  });
+
+  return c.json({ data });
+});
+
 app.get("/:id", async (c) => {
   const id = c.req.param("id");
 

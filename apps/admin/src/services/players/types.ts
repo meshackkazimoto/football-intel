@@ -20,7 +20,7 @@ export interface CreatePlayerInput {
   fullName: string;
   firstName?: string;
   lastName?: string;
-  slug: string;
+  slug?: string;
   dateOfBirth?: string;
   nationalityId?: string;
   preferredFoot?: "left" | "right" | "both";

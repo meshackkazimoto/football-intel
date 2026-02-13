@@ -1,5 +1,6 @@
 import { apiClient } from "../api-client";
 import {
+  Country,
   Player,
   PlayersResponse,
   PlayerFilters,
@@ -19,6 +20,13 @@ export const playersService = {
   getPlayerById: async (id: string): Promise<Player> => {
     const { data } = await apiClient.get<Player>(
       `/admin/players/${id}`,
+    );
+    return data;
+  },
+
+  getNationalities: async (): Promise<{ data: Country[] }> => {
+    const { data } = await apiClient.get<{ data: Country[] }>(
+      "/admin/players/nationalities",
     );
     return data;
   },

@@ -38,6 +38,15 @@ function getApiErrorMessage(
   return fallback;
 }
 
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
 export default function PlayersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -55,6 +64,11 @@ export default function PlayersPage() {
     queryKey: ["players", searchQuery],
     queryFn: () =>
       playersService.getPlayers(searchQuery ? { search: searchQuery } : {}),
+  });
+
+  const { data: nationalities } = useQuery({
+    queryKey: ["player-nationalities"],
+    queryFn: () => playersService.getNationalities(),
   });
 
   const { data: seasons } = useQuery({
@@ -93,6 +107,12 @@ export default function PlayersPage() {
       queryClient.invalidateQueries({ queryKey: ["players"] });
       setShowCreateForm(false);
       reset();
+      setActionError(null);
+    },
+    onError: (err) => {
+      setActionError(
+        getApiErrorMessage(err, "Failed to create player."),
+      );
     },
   });
 
@@ -152,7 +172,22 @@ export default function PlayersPage() {
   });
 
   const onSubmit = (formData: CreatePlayerInput) => {
-    createMutation.mutate(formData);
+    const name = formData.fullName.trim();
+    const nameParts = name.split(/\s+/).filter(Boolean);
+    const derivedFirstName = formData.firstName?.trim() || nameParts[0] || "Unknown";
+    const derivedLastName =
+      formData.lastName?.trim() ||
+      nameParts.slice(1).join(" ") ||
+      "Unknown";
+    const derivedSlug = (formData.slug?.trim() || slugify(name)) || "unknown-player";
+
+    createMutation.mutate({
+      ...formData,
+      fullName: name,
+      firstName: derivedFirstName,
+      lastName: derivedLastName,
+      slug: derivedSlug,
+    });
   };
 
   const openManageContracts = (player: Player) => {
@@ -254,10 +289,16 @@ export default function PlayersPage() {
               error={errors.dateOfBirth}
             />
 
-            <FormInput
-              label="Nationality ID"
+            <FormSelect
+              label="Nationality"
               {...register("nationalityId")}
               error={errors.nationalityId}
+              options={
+                nationalities?.data.map((country) => ({
+                  label: `${country.name} (${country.code})`,
+                  value: country.id,
+                })) ?? []
+              }
             />
 
             <FormSelect
