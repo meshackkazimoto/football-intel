@@ -5,6 +5,7 @@ import { db } from "@football-intel/db/src/client";
 import { matchPossessions, matches } from "@football-intel/db/src/schema/core";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
+import { computeMatchStats } from "@football-intel/domain";
 import { requireRole } from "src/middleware/require-role";
 import { enforceMatchUnlocked } from "src/middleware/match-lock";
 
@@ -61,7 +62,17 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
     return c.json({ error: "Team does not belong to this match" }, 400);
   }
 
-  const referenceSecond = second ?? Math.max(0, (match.currentMinute ?? 0) * 60);
+  const minuteBasedSecond = Math.max(0, (match.currentMinute ?? 0) * 60);
+  const elapsedSecond = match.startedAt
+    ? Math.max(
+        0,
+        Math.floor(
+          ((match.endedAt ?? new Date()).getTime() - match.startedAt.getTime()) /
+            1000,
+        ),
+      )
+    : minuteBasedSecond;
+  const referenceSecond = second ?? Math.max(minuteBasedSecond, elapsedSecond);
 
   const active = await db.query.matchPossessions.findFirst({
     where: and(eq(matchPossessions.matchId, matchId), isNull(matchPossessions.endSecond)),
@@ -93,6 +104,7 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
   }
 
   if (changed) {
+    await computeMatchStats(matchId);
     await statsQueue.add(StatsJobs.RECOMPUTE_STATS, { matchId });
   }
 

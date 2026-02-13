@@ -16,13 +16,12 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { matchesService } from '@/services/matches/matches.service';
 import type { MatchDetails, MatchStandingRow } from '@/services/matches/types/match-details';
 
-type TabKey = 'overview' | 'stats' | 'lineup' | 'events' | 'standings';
+type TabKey = 'overview' | 'stats' | 'lineup' | 'standings';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'stats', label: 'Stats' },
   { key: 'lineup', label: 'Lineup' },
-  { key: 'events', label: 'Events' },
   { key: 'standings', label: 'Standings' },
 ];
 
@@ -211,14 +210,36 @@ export default function MatchDetailScreen() {
             ) : null}
 
             <View style={[styles.panel, { borderColor: border }]}> 
-              <ThemedText type="defaultSemiBold">Latest Event</ThemedText>
-              {match.lastEvent ? (
-                <ThemedText style={styles.eventLine}>
-                  {`${match.lastEvent.minute}'`} {match.lastEvent.teamName} • {match.lastEvent.type.replaceAll('_', ' ')}
-                </ThemedText>
-              ) : (
-                <ThemedText style={styles.muted}>No events yet</ThemedText>
-              )}
+              <ThemedText type="defaultSemiBold">Match Events</ThemedText>
+              {match.timeline.length === 0 ? <ThemedText style={styles.muted}>No events yet</ThemedText> : null}
+              {match.timeline.map((event) => {
+                const isHome = event.teamId === match.teams.home.id;
+                return (
+                  <View key={event.id} style={styles.timelineRow}>
+                    <View style={[styles.timelineSide, styles.timelineSideLeft]}>
+                      {isHome ? (
+                        <View style={[styles.eventBubble, styles.eventBubbleHome]}>
+                          <ThemedText style={styles.eventBubbleText}>
+                            {event.type.replaceAll('_', ' ')}
+                            {event.player ? ` • ${event.player.fullName}` : ''}
+                          </ThemedText>
+                        </View>
+                      ) : null}
+                    </View>
+                    <ThemedText style={styles.timelineMinute}>{`${event.minute}'`}</ThemedText>
+                    <View style={[styles.timelineSide, styles.timelineSideRight]}>
+                      {!isHome ? (
+                        <View style={[styles.eventBubble, styles.eventBubbleAway]}>
+                          <ThemedText style={styles.eventBubbleText}>
+                            {event.type.replaceAll('_', ' ')}
+                            {event.player ? ` • ${event.player.fullName}` : ''}
+                          </ThemedText>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -249,29 +270,6 @@ export default function MatchDetailScreen() {
               starters={match.lineups.away.starters}
               bench={match.lineups.away.bench}
             />
-          </View>
-        )}
-
-        {activeTab === 'events' && (
-          <View style={styles.section}>
-            <View style={[styles.panel, { borderColor: border }]}> 
-              {match.timeline.length === 0 ? (
-                <ThemedText style={styles.muted}>No events recorded</ThemedText>
-              ) : (
-                match.timeline.map((event) => (
-                  <View key={event.id} style={[styles.eventRow, { borderBottomColor: border }]}>
-                    <ThemedText style={styles.eventMinute}>{`${event.minute}'`}</ThemedText>
-                    <View style={styles.eventInfo}>
-                      <ThemedText type="defaultSemiBold">{event.teamName}</ThemedText>
-                      <ThemedText style={styles.eventLine}>
-                        {event.type.replaceAll('_', ' ')}
-                        {event.player ? ` • ${event.player.fullName}` : ''}
-                      </ThemedText>
-                    </View>
-                  </View>
-                ))
-              )}
-            </View>
           </View>
         )}
 
@@ -512,6 +510,44 @@ const styles = StyleSheet.create({
   probItem: { flex: 1, alignItems: 'center', gap: 4 },
   muted: { fontSize: 13, opacity: 0.65 },
   eventLine: { fontSize: 14, opacity: 0.9 },
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timelineSide: {
+    flex: 1,
+    minHeight: 34,
+    justifyContent: 'center',
+  },
+  timelineSideLeft: {
+    alignItems: 'flex-end',
+  },
+  timelineSideRight: {
+    alignItems: 'flex-start',
+  },
+  eventBubble: {
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    maxWidth: '95%',
+  },
+  eventBubbleHome: {
+    backgroundColor: '#10b98120',
+  },
+  eventBubbleAway: {
+    backgroundColor: '#3b82f620',
+  },
+  eventBubbleText: {
+    fontSize: 12,
+  },
+  timelineMinute: {
+    width: 38,
+    textAlign: 'center',
+    fontSize: 12,
+    opacity: 0.7,
+    fontWeight: '700',
+  },
   eventRow: {
     flexDirection: 'row',
     gap: 10,

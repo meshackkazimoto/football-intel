@@ -148,7 +148,7 @@ export default function MatchesPage() {
       data: {
         status: "live",
         period: "2H",
-        currentMinute: 46,
+        currentMinute: 45,
       },
     });
   };

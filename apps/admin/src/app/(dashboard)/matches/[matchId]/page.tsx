@@ -119,6 +119,23 @@ const EMPTY_STATS: MatchStatsDraft = {
   passAccuracy: undefined,
 };
 
+const toOptionalInt = (value: unknown): number | undefined => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return Math.trunc(value);
+};
+
+const sanitizeStatsDraft = (draft: MatchStatsDraft): MatchStatsDraft => ({
+  possession: toOptionalInt(draft.possession),
+  shotsOnTarget: toOptionalInt(draft.shotsOnTarget),
+  shotsOffTarget: toOptionalInt(draft.shotsOffTarget),
+  corners: toOptionalInt(draft.corners),
+  fouls: toOptionalInt(draft.fouls),
+  yellowCards: toOptionalInt(draft.yellowCards),
+  redCards: toOptionalInt(draft.redCards),
+  saves: toOptionalInt(draft.saves),
+  passAccuracy: toOptionalInt(draft.passAccuracy),
+});
+
 export default function MatchAdminPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const queryClient = useQueryClient();
@@ -328,28 +345,32 @@ export default function MatchAdminPage() {
   );
 
   useEffect(() => {
-    setHomeStatsDraft({
-      possession: homeStats?.possession,
-      shotsOnTarget: homeStats?.shotsOnTarget,
-      shotsOffTarget: homeStats?.shotsOffTarget,
-      corners: homeStats?.corners,
-      fouls: homeStats?.fouls,
-      yellowCards: homeStats?.yellowCards,
-      redCards: homeStats?.redCards,
-      saves: homeStats?.saves,
-      passAccuracy: homeStats?.passAccuracy,
-    });
-    setAwayStatsDraft({
-      possession: awayStats?.possession,
-      shotsOnTarget: awayStats?.shotsOnTarget,
-      shotsOffTarget: awayStats?.shotsOffTarget,
-      corners: awayStats?.corners,
-      fouls: awayStats?.fouls,
-      yellowCards: awayStats?.yellowCards,
-      redCards: awayStats?.redCards,
-      saves: awayStats?.saves,
-      passAccuracy: awayStats?.passAccuracy,
-    });
+    setHomeStatsDraft(
+      sanitizeStatsDraft({
+        possession: homeStats?.possession,
+        shotsOnTarget: homeStats?.shotsOnTarget,
+        shotsOffTarget: homeStats?.shotsOffTarget,
+        corners: homeStats?.corners,
+        fouls: homeStats?.fouls,
+        yellowCards: homeStats?.yellowCards,
+        redCards: homeStats?.redCards,
+        saves: homeStats?.saves,
+        passAccuracy: homeStats?.passAccuracy,
+      }),
+    );
+    setAwayStatsDraft(
+      sanitizeStatsDraft({
+        possession: awayStats?.possession,
+        shotsOnTarget: awayStats?.shotsOnTarget,
+        shotsOffTarget: awayStats?.shotsOffTarget,
+        corners: awayStats?.corners,
+        fouls: awayStats?.fouls,
+        yellowCards: awayStats?.yellowCards,
+        redCards: awayStats?.redCards,
+        saves: awayStats?.saves,
+        passAccuracy: awayStats?.passAccuracy,
+      }),
+    );
   }, [homeStats, awayStats]);
 
   if (isLoading || !match) {
@@ -382,7 +403,7 @@ export default function MatchAdminPage() {
   const resumeSecondHalf = () =>
     updateMatch.mutate({
       status: "live",
-      currentMinute: 46,
+      currentMinute: 45,
       period: "2H",
     });
 
@@ -502,7 +523,7 @@ export default function MatchAdminPage() {
     }
 
     const isHome = team === "home";
-    const draft = isHome ? homeStatsDraft : awayStatsDraft;
+    const draft = sanitizeStatsDraft(isHome ? homeStatsDraft : awayStatsDraft);
 
     saveStats.mutate({
       matchId,
@@ -531,7 +552,7 @@ export default function MatchAdminPage() {
     field: keyof MatchStatsDraft,
     value: string,
   ) => {
-    const parsed = value.trim() === "" ? undefined : Number(value);
+    const parsed = value.trim() === "" ? undefined : Number.parseInt(value, 10);
     const nextValue = Number.isNaN(parsed as number) ? undefined : parsed;
 
     if (team === "home") {

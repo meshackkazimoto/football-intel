@@ -9,6 +9,26 @@ import {
 } from "@football-intel/db/src/schema/core";
 import { and, eq, sql } from "drizzle-orm";
 
+function getMatchReferenceSecond(match: {
+  currentMinute: number | null;
+  startedAt: Date | null;
+  endedAt: Date | null;
+}) {
+  const minuteBased = Math.max(0, (match.currentMinute ?? 0) * 60);
+
+  if (!match.startedAt) {
+    return minuteBased;
+  }
+
+  const end = match.endedAt ?? new Date();
+  const elapsed = Math.max(
+    0,
+    Math.floor((end.getTime() - match.startedAt.getTime()) / 1000),
+  );
+
+  return Math.max(minuteBased, elapsed);
+}
+
 export async function recomputePlayerStats(matchId: string) {
   const match = await db.query.matches.findFirst({
     where: eq(matches.id, matchId),
@@ -115,7 +135,7 @@ export async function computeMatchStats(matchId: string) {
   if (!match) return;
 
   const teamIds = [match.homeTeamId, match.awayTeamId];
-  const referenceSecond = Math.max(0, (match.currentMinute ?? 0) * 60);
+  const referenceSecond = getMatchReferenceSecond(match);
 
   const possessionRows = await db.query.matchPossessions.findMany({
     where: eq(matchPossessions.matchId, matchId),
