@@ -4,6 +4,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { Colors } from '@/constants/theme';
+import type { MatchListItem } from '@/services/matches/types/match-list';
+import type { LiveMatch } from '@/services/matches/types/match-live';
+import type { MatchSearchResult } from '@/services/search/types';
 
 function formatTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -16,7 +19,10 @@ function formatDate(dateStr: string) {
 }
 
 interface MatchCardProps {
-  match: Match;
+  match: (MatchListItem | LiveMatch | MatchSearchResult) & {
+    minute?: number | null;
+    competition?: string;
+  };
 }
 
 export function MatchCard({ match }: MatchCardProps) {
@@ -25,16 +31,24 @@ export function MatchCard({ match }: MatchCardProps) {
   const primary = useThemeColor({}, 'primary');
   const background = useThemeColor({}, 'background');
 
-  const homeName = match.homeTeam?.club?.name ?? match.homeTeam?.club?.shortName ?? 'Home';
-  const awayName = match.awayTeam?.club?.name ?? match.awayTeam?.club?.shortName ?? 'Away';
-  const homeShort = match.homeTeam?.club?.shortName ?? homeName.substring(0, 3).toUpperCase();
-  const awayShort = match.awayTeam?.club?.shortName ?? awayName.substring(0, 3).toUpperCase();
+  const homeTeamData = match.homeTeam as
+    | { club?: { name?: string } | null; name?: string }
+    | undefined;
+  const awayTeamData = match.awayTeam as
+    | { club?: { name?: string } | null; name?: string }
+    | undefined;
+
+  const homeName = homeTeamData?.club?.name ?? homeTeamData?.name ?? 'Home';
+  const awayName = awayTeamData?.club?.name ?? awayTeamData?.name ?? 'Away';
+  const homeShort = homeName.substring(0, 3).toUpperCase();
+  const awayShort = awayName.substring(0, 3).toUpperCase();
+
+  const homeScore = 'score' in match ? match.score.home : match.homeScore;
+  const awayScore = 'score' in match ? match.score.away : match.awayScore;
 
   const isFinished = match.status === 'finished';
   const isLive = match.status === 'live';
-  const isHalftime = match.status === 'halftime';
-  const isScheduled = match.status === 'scheduled';
-
+  const isHalftime = match.status === 'half_time';
   return (
     <Pressable
       onPress={() => router.push(`/match/${match.id}`)}
@@ -88,11 +102,11 @@ export function MatchCard({ match }: MatchCardProps) {
             {isFinished || isLive || isHalftime ? (
               <>
                 <ThemedText type="defaultSemiBold" style={styles.score}>
-                  {match.homeScore ?? 0}
+                  {homeScore ?? 0}
                 </ThemedText>
                 <ThemedText style={styles.scoreSeparator}>-</ThemedText>
                 <ThemedText type="defaultSemiBold" style={styles.score}>
-                  {match.awayScore ?? 0}
+                  {awayScore ?? 0}
                 </ThemedText>
               </>
             ) : (

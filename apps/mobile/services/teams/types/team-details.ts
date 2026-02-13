@@ -1,17 +1,53 @@
-import type { Team } from './team-base';
-
-export interface TeamPlayerContract {
+export interface TeamDetails {
   id: string;
-  position: string;
-  jerseyNumber: number | null;
+  name: string;
 
-  player: {
+  club: {
     id: string;
-    fullName: string;
-    slug: string;
+    name: string;
+    stadiumName: string | null;
   };
+
+  league: {
+    id: string;
+    name: string;
+    country: string;
+    season: string;
+  };
+
+  standings: {
+    position: number;
+    played: number;
+    wins: number;
+    draws: number;
+    losses: number;
+    goalsFor: number;
+    goalsAgainst: number;
+    goalDifference: number;
+    points: number;
+    winRatio: string;
+    averageGoals: string;
+    form: Array<'W' | 'D' | 'L'>;
+  } | null;
+
+  performance: {
+    home: TeamPerformance;
+    away: TeamPerformance;
+  };
+
+  squad: TeamPlayer[];
 }
 
-export interface TeamDetails extends Team {
-  contracts: TeamPlayerContract[];
+export interface TeamPerformance {
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
+export interface TeamPlayer {
+  id: string;
+  fullName: string;
+  position: string;
+  jerseyNumber: number | null;
 }

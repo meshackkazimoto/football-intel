@@ -7,7 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -17,7 +17,6 @@ import { useThemeColor } from '@/hooks/use-theme-color';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { matchesService } from '@/services/matches/matches.service';
-import { Colors } from '@/constants/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -158,8 +157,8 @@ export default function HomeScreen() {
               />
               <QuickLink
                 icon="calendar"
-                label="Fixtures"
-                onPress={() => router.push('/fixtures/nbc-premier')}
+                label="All Matches"
+                onPress={() => router.push('/matches')}
                 primary={primary}
                 border={border}
                 background={background}

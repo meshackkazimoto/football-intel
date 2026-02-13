@@ -14,7 +14,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { clubsService } from '@/services/clubs/clubs.service';
+import { teamsService } from '@/services/teams/teams.service';
 
 export default function TeamsScreen() {
   const router = useRouter();
@@ -26,33 +26,33 @@ export default function TeamsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const {
-    data: clubs = [],
+    data: teams = [],
     isLoading,
     refetch,
     isRefetching,
   } = useQuery({
-    queryKey: ['clubs'],
-    queryFn: clubsService.getList,
+    queryKey: ['teams'],
+    queryFn: () => teamsService.getList(),
   });
 
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
 
-  const filteredClubs = clubs.filter((club) =>
-    club.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTeams = teams.filter((team) =>
+    team.club.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <ThemedView style={styles.container}>
-      <View style={[styles.header, { borderBottomColor: border }]}>
+      <View style={[styles.header, { borderBottomColor: border }]}> 
         <ThemedText type="title" style={styles.title}>
           Teams
         </ThemedText>
       </View>
 
       <View style={styles.searchContainer}>
-        <View style={[styles.searchBox, { backgroundColor: background, borderColor: border }]}>
+        <View style={[styles.searchBox, { backgroundColor: background, borderColor: border }]}> 
           <IconSymbol name="magnifyingglass" size={18} color={primary} />
           <TextInput
             style={[styles.searchInput, { color: textColor }]}
@@ -61,11 +61,11 @@ export default function TeamsScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          {searchQuery.length > 0 && (
+          {searchQuery.length > 0 ? (
             <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
               <IconSymbol name="xmark.circle.fill" size={18} color={`${textColor}60`} />
             </Pressable>
-          )}
+          ) : null}
         </View>
       </View>
 
@@ -83,7 +83,7 @@ export default function TeamsScreen() {
           <View style={styles.loading}>
             <ActivityIndicator size="large" color={primary} />
           </View>
-        ) : filteredClubs.length === 0 ? (
+        ) : filteredTeams.length === 0 ? (
           <View style={styles.empty}>
             <ThemedText style={styles.emptyText}>
               {searchQuery ? 'No teams found' : 'No teams available'}
@@ -91,10 +91,10 @@ export default function TeamsScreen() {
           </View>
         ) : (
           <View style={styles.teams}>
-            {filteredClubs.map((club) => (
+            {filteredTeams.map((team) => (
               <Pressable
-                key={club.id}
-                onPress={() => router.push(`/team/${club.id}`)}
+                key={team.id}
+                onPress={() => router.push(`/team/${team.id}`)}
                 style={({ pressed }) => [
                   styles.teamCard,
                   { borderColor: border },
@@ -102,15 +102,15 @@ export default function TeamsScreen() {
                 ]}
               >
                 <View style={styles.teamLeft}>
-                  <View style={[styles.teamBadge, { borderColor: border }]}>
+                  <View style={[styles.teamBadge, { borderColor: border }]}> 
                     <ThemedText style={styles.teamBadgeText}>
-                      {club.name.charAt(0).toUpperCase()}
+                      {team.club.name.charAt(0).toUpperCase()}
                     </ThemedText>
                   </View>
                   <View style={styles.teamInfo}>
-                    <ThemedText style={styles.teamName}>{club.name}</ThemedText>
+                    <ThemedText style={styles.teamName}>{team.club.name}</ThemedText>
                     <ThemedText style={styles.teamLeague}>
-                      {club.country.name}
+                      {team.season.name}
                     </ThemedText>
                   </View>
                 </View>
@@ -129,7 +129,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
   header: {
     paddingTop: 56,
     paddingHorizontal: 20,
@@ -139,7 +138,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
   },
-
   searchContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -158,17 +156,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-
   content: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-
   loading: {
     paddingTop: 60,
     alignItems: 'center',
   },
-
   empty: {
     paddingTop: 60,
     alignItems: 'center',
@@ -177,7 +172,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     opacity: 0.6,
   },
-
   teams: {
     gap: 12,
   },
@@ -192,7 +186,6 @@ const styles = StyleSheet.create({
   teamCardPressed: {
     opacity: 0.7,
   },
-
   teamLeft: {
     flex: 1,
     flexDirection: 'row',
@@ -224,20 +217,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     opacity: 0.6,
-  },
-
-  teamRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  positionBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  positionText: {
-    fontSize: 13,
-    fontWeight: '700',
   },
 });

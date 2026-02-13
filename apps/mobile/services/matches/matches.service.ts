@@ -10,7 +10,7 @@ import type {
   LiveMatchesResponse,
 } from './types/match-live';
 
-import type { MatchLiveDetails } from './types/match-live-details';
+import type { MatchDetails } from './types/match-details';
 
 import type { MatchResult } from './types/match-result';
 
@@ -55,8 +55,15 @@ export const matchesService = {
     return data;
   },
 
-  getLiveDetails: async (id: string): Promise<MatchLiveDetails> => {
-    const { data } = await api.get<MatchLiveDetails>(
+  getDetails: async (id: string): Promise<MatchDetails> => {
+    const { data } = await api.get<MatchDetails>(
+      `/matches/${id}/details`
+    );
+    return data;
+  },
+
+  getLiveDetails: async (id: string) => {
+    const { data } = await api.get(
       `/matches/${id}/live`
     );
     return data;
@@ -89,4 +96,28 @@ export const matchesService = {
     });
     return data;
   },
-};
+
+  getLeagueFixtures: async (seasonId: string): Promise<MatchListItem[]> => {
+    const { data } = await api.get<MatchesListResponse>('/matches', {
+      params: {
+        seasonId,
+        status: 'scheduled',
+        page: 1,
+        limit: 50,
+      },
+    });
+    return data.data;
+  },
+
+  getLeagueResults: async (seasonId: string): Promise<MatchListItem[]> => {
+    const { data } = await api.get<MatchesListResponse>('/matches', {
+      params: {
+        seasonId,
+        status: 'finished',
+        page: 1,
+        limit: 50,
+      },
+    });
+    return data.data;
+  },
+}; 

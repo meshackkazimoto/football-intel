@@ -20,7 +20,8 @@ type Tab = 'fixtures' | 'results';
 
 export default function FixturesScreen() {
   const router = useRouter();
-  const { leagueId } = useLocalSearchParams();
+  const { leagueId } = useLocalSearchParams<{ leagueId: string }>();
+  const seasonId = Array.isArray(leagueId) ? leagueId[0] : leagueId;
   const primary = useThemeColor({}, 'primary');
   const border = useThemeColor({}, 'border');
 
@@ -32,9 +33,9 @@ export default function FixturesScreen() {
     refetch: refetchFixtures,
     isRefetching: fixturesRefetching,
   } = useQuery({
-    queryKey: ['fixtures', leagueId],
-    queryFn: () => matchesService.getLeagueFixtures(leagueId as string),
-    enabled: !!leagueId && activeTab === 'fixtures',
+    queryKey: ['fixtures', seasonId],
+    queryFn: () => matchesService.getLeagueFixtures(seasonId!),
+    enabled: !!seasonId && activeTab === 'fixtures',
   });
 
   const {
@@ -43,9 +44,9 @@ export default function FixturesScreen() {
     refetch: refetchResults,
     isRefetching: resultsRefetching,
   } = useQuery({
-    queryKey: ['results', leagueId],
-    queryFn: () => matchesService.getLeagueResults(leagueId as string),
-    enabled: !!leagueId && activeTab === 'results',
+    queryKey: ['results', seasonId],
+    queryFn: () => matchesService.getLeagueResults(seasonId!),
+    enabled: !!seasonId && activeTab === 'results',
   });
 
   const onRefresh = useCallback(() => {
@@ -66,7 +67,7 @@ export default function FixturesScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <IconSymbol name="chevron.left" size={24} color={primary} />
         </Pressable>
-        <ThemedText type="subtitle">NBC Premier League</ThemedText>
+        <ThemedText type="subtitle">Matches</ThemedText>
         <View style={{ width: 24 }} />
       </View>
 
@@ -166,7 +167,7 @@ function groupMatchesByDate(matches: any[]) {
   const dateMap = new Map<string, any[]>();
 
   matches.forEach((match) => {
-    const date = match.date;
+    const date = new Date(match.matchDate).toDateString();
     if (!dateMap.has(date)) {
       dateMap.set(date, []);
     }

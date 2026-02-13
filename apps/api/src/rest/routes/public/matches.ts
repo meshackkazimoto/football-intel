@@ -4,8 +4,10 @@ import { db } from "@football-intel/db/src/client";
 import {
   matches,
   matchEvents,
+  matchLineups,
   matchStats,
   matchPredictions,
+  leagueStandings,
 } from "@football-intel/db/src/schema/core";
 import { eq, and, gte, lte, desc, asc, or, sql } from "drizzle-orm";
 import { createRateLimiter } from "../../../middleware/rate-limit";
@@ -17,6 +19,128 @@ import {
 import { Env } from "src/env";
 
 const app = new Hono<Env>();
+
+type StandingsRow = {
+  teamId: string;
+  position: number;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+  pointsDeduction: number | null;
+  status: string | null;
+  team: {
+    id: string;
+    name: string;
+    club: {
+      id: string;
+      name: string;
+      slug: string;
+    };
+  };
+};
+
+function normalizeStandingsRows(rows: StandingsRow[]) {
+  return rows.map((row) => ({
+    teamId: row.teamId,
+    position: row.position,
+    played: row.played,
+    wins: row.wins,
+    draws: row.draws,
+    losses: row.losses,
+    goalsFor: row.goalsFor,
+    goalsAgainst: row.goalsAgainst,
+    goalDifference: row.goalDifference,
+    points: row.points - (row.pointsDeduction ?? 0),
+    status: row.status,
+    team: {
+      id: row.team.id,
+      name: row.team.name,
+      club: {
+        id: row.team.club.id,
+        name: row.team.club.name,
+        slug: row.team.club.slug,
+      },
+    },
+  }));
+}
+
+function computeLiveStandings(
+  rows: StandingsRow[],
+  homeTeamId: string,
+  awayTeamId: string,
+  homeScore: number | null,
+  awayScore: number | null,
+) {
+  const normalized = normalizeStandingsRows(rows);
+
+  if (homeScore === null || awayScore === null) {
+    return normalized;
+  }
+
+  const homeRow = normalized.find((row) => row.teamId === homeTeamId);
+  const awayRow = normalized.find((row) => row.teamId === awayTeamId);
+
+  if (!homeRow || !awayRow) {
+    return normalized;
+  }
+
+  const applyLiveOutcome = (
+    row: typeof homeRow,
+    goalsForDelta: number,
+    goalsAgainstDelta: number,
+    outcome: "win" | "draw" | "loss",
+  ) => {
+    row.played += 1;
+    row.goalsFor += goalsForDelta;
+    row.goalsAgainst += goalsAgainstDelta;
+    row.goalDifference = row.goalsFor - row.goalsAgainst;
+
+    if (outcome === "win") {
+      row.wins += 1;
+      row.points += 3;
+      return;
+    }
+
+    if (outcome === "draw") {
+      row.draws += 1;
+      row.points += 1;
+      return;
+    }
+
+    row.losses += 1;
+  };
+
+  if (homeScore > awayScore) {
+    applyLiveOutcome(homeRow, homeScore, awayScore, "win");
+    applyLiveOutcome(awayRow, awayScore, homeScore, "loss");
+  } else if (homeScore < awayScore) {
+    applyLiveOutcome(homeRow, homeScore, awayScore, "loss");
+    applyLiveOutcome(awayRow, awayScore, homeScore, "win");
+  } else {
+    applyLiveOutcome(homeRow, homeScore, awayScore, "draw");
+    applyLiveOutcome(awayRow, awayScore, homeScore, "draw");
+  }
+
+  return normalized
+    .slice()
+    .sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.goalDifference !== a.goalDifference) {
+        return b.goalDifference - a.goalDifference;
+      }
+      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+      return a.team.club.name.localeCompare(b.team.club.name);
+    })
+    .map((row, index) => ({
+      ...row,
+      position: index + 1,
+    }));
+}
 
 app.get("/", createRateLimiter(50, 60), cacheMiddleware(30), async (c) => {
   const seasonId = c.req.query("seasonId");
@@ -174,6 +298,166 @@ app.get("/:id/stats", createRateLimiter(50, 60), async (c) => {
   return c.json(stats);
 });
 
+app.get("/:id/details", createRateLimiter(80, 60), async (c) => {
+  const id = c.req.param("id");
+
+  const match = await db.query.matches.findFirst({
+    where: eq(matches.id, id),
+    with: {
+      season: {
+        with: {
+          league: {
+            with: {
+              country: true,
+            },
+          },
+        },
+      },
+      homeTeam: { with: { club: true } },
+      awayTeam: { with: { club: true } },
+      events: {
+        with: {
+          player: true,
+          team: {
+            with: {
+              club: true,
+            },
+          },
+        },
+        orderBy: [asc(matchEvents.minute), asc(matchEvents.createdAt)],
+      },
+      stats: {
+        with: {
+          team: {
+            with: {
+              club: true,
+            },
+          },
+        },
+      },
+      lineups: {
+        with: {
+          player: true,
+          team: {
+            with: {
+              club: true,
+            },
+          },
+        },
+        orderBy: [asc(matchLineups.createdAt)],
+      },
+      prediction: true,
+    },
+  });
+
+  if (!match) {
+    return c.json({ error: "Match not found" }, 404);
+  }
+
+  const standingsRows = await db.query.leagueStandings.findMany({
+    where: eq(leagueStandings.seasonId, match.seasonId),
+    with: {
+      team: {
+        with: {
+          club: true,
+        },
+      },
+    },
+    orderBy: [asc(leagueStandings.position)],
+  });
+
+  const standings = normalizeStandingsRows(standingsRows as StandingsRow[]);
+
+  const shouldIncludeLiveStandings =
+    (match.status === "live" ||
+      match.status === "half_time" ||
+      match.status === "finished") &&
+    match.homeScore !== null &&
+    match.awayScore !== null;
+
+  const liveStandings = shouldIncludeLiveStandings
+    ? computeLiveStandings(
+        standingsRows as StandingsRow[],
+        match.homeTeamId,
+        match.awayTeamId,
+        match.homeScore,
+        match.awayScore,
+      )
+    : standings;
+
+  const groupedLineups = {
+    home: {
+      starters: match.lineups.filter(
+        (lineup) => lineup.teamId === match.homeTeamId && lineup.isStarting,
+      ),
+      bench: match.lineups.filter(
+        (lineup) => lineup.teamId === match.homeTeamId && !lineup.isStarting,
+      ),
+    },
+    away: {
+      starters: match.lineups.filter(
+        (lineup) => lineup.teamId === match.awayTeamId && lineup.isStarting,
+      ),
+      bench: match.lineups.filter(
+        (lineup) => lineup.teamId === match.awayTeamId && !lineup.isStarting,
+      ),
+    },
+  };
+
+  const stats = {
+    home: match.stats.find((row) => row.teamId === match.homeTeamId) ?? null,
+    away: match.stats.find((row) => row.teamId === match.awayTeamId) ?? null,
+  };
+
+  const timeline = match.events.map((event) => ({
+    id: event.id,
+    minute: event.minute,
+    type: event.eventType,
+    teamId: event.teamId,
+    teamName: event.team.club.name,
+    player: event.player
+      ? {
+          id: event.player.id,
+          fullName: event.player.fullName,
+        }
+      : null,
+  }));
+
+  return c.json({
+    id: match.id,
+    status: match.status,
+    minute: match.currentMinute,
+    period: match.period,
+    matchDate: match.matchDate,
+    venue: match.venue,
+    score: {
+      home: match.homeScore,
+      away: match.awayScore,
+    },
+    competition: {
+      seasonId: match.seasonId,
+      seasonName: match.season.name,
+      leagueId: match.season.league.id,
+      leagueName: match.season.league.name,
+      country: match.season.league.country.name,
+    },
+    teams: {
+      home: match.homeTeam,
+      away: match.awayTeam,
+    },
+    timeline,
+    lastEvent: timeline.at(-1) ?? null,
+    stats,
+    lineups: groupedLineups,
+    prediction: match.prediction,
+    standings: {
+      table: standings,
+      liveTable: liveStandings,
+      isLiveAdjusted: shouldIncludeLiveStandings,
+    },
+  });
+});
+
 app.get("/h2h", createRateLimiter(50, 60), async (c) => {
   const clubA = c.req.query("clubA");
   const clubB = c.req.query("clubB");
@@ -261,7 +545,6 @@ app.get("/:id/live-stream", async (c) => {
 });
 
 app.get("/live", createRateLimiter(100, 60), async (c) => {
-  const leagueId = c.req.query("leagueId");
   const seasonId = c.req.query("seasonId");
 
   const data = await db.query.matches.findMany({

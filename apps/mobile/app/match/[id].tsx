@@ -1,11 +1,11 @@
-import { useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
-  Pressable,
-  RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -14,13 +14,66 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { matchesService } from '@/services/matches/matches.service';
+import type { MatchDetails, MatchStandingRow } from '@/services/matches/types/match-details';
+
+type TabKey = 'overview' | 'stats' | 'lineup' | 'events' | 'standings';
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'stats', label: 'Stats' },
+  { key: 'lineup', label: 'Lineup' },
+  { key: 'events', label: 'Events' },
+  { key: 'standings', label: 'Standings' },
+];
+
+function formatDateTime(date: string) {
+  return new Date(date).toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatStatus(match: MatchDetails) {
+  if (match.status === 'live') {
+    return `${match.minute ?? 0}'`;
+  }
+
+  if (match.status === 'half_time') {
+    return 'Half Time';
+  }
+
+  if (match.status === 'finished') {
+    return 'Full Time';
+  }
+
+  if (match.status === 'postponed') {
+    return 'Postponed';
+  }
+
+  return formatDateTime(match.matchDate);
+}
+
+function statusColor(status: MatchDetails['status']) {
+  if (status === 'live') return '#dc2626';
+  if (status === 'half_time') return '#f59e0b';
+  if (status === 'finished') return '#16a34a';
+  if (status === 'postponed') return '#6b7280';
+  return '#6b7280';
+}
 
 export default function MatchDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const matchId = Array.isArray(id) ? id[0] : id;
+
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+
   const primary = useThemeColor({}, 'primary');
   const border = useThemeColor({}, 'border');
-  const background = useThemeColor({}, 'background');
+  const card = useThemeColor({}, 'card');
 
   const {
     data: match,
@@ -28,25 +81,31 @@ export default function MatchDetailScreen() {
     refetch,
     isRefetching,
   } = useQuery({
-    queryKey: ['match', id],
-    queryFn: () => matchesService.getMatchDetails(id as string),
-    enabled: !!id,
+    queryKey: ['matches', 'details', matchId],
+    queryFn: () => matchesService.getDetails(matchId!),
+    enabled: !!matchId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'live' || status === 'half_time') return 15000;
+      return false;
+    },
   });
 
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
 
+  const tableRows = useMemo(() => {
+    if (!match) return [];
+    return match.standings.isLiveAdjusted
+      ? match.standings.liveTable
+      : match.standings.table;
+  }, [match]);
+
   if (isLoading) {
     return (
       <ThemedView style={styles.container}>
-        <View style={[styles.header, { borderBottomColor: border }]}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <IconSymbol name="chevron.left" size={24} color={primary} />
-          </Pressable>
-          <ThemedText type="subtitle">Match Details</ThemedText>
-          <View style={{ width: 24 }} />
-        </View>
+        <Header onBack={() => router.back()} border={border} primary={primary} title="Match" />
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={primary} />
         </View>
@@ -57,172 +116,171 @@ export default function MatchDetailScreen() {
   if (!match) {
     return (
       <ThemedView style={styles.container}>
-        <View style={[styles.header, { borderBottomColor: border }]}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <IconSymbol name="chevron.left" size={24} color={primary} />
-          </Pressable>
-          <ThemedText type="subtitle">Match Details</ThemedText>
-          <View style={{ width: 24 }} />
-        </View>
-        <View style={styles.empty}>
-          <ThemedText style={styles.emptyText}>Match not found</ThemedText>
+        <Header onBack={() => router.back()} border={border} primary={primary} title="Match" />
+        <View style={styles.loading}>
+          <ThemedText>Match not found</ThemedText>
         </View>
       </ThemedView>
     );
   }
 
+  const homeName = match.teams.home.club.name;
+  const awayName = match.teams.away.club.name;
+  const status = formatStatus(match);
+
   return (
     <ThemedView style={styles.container}>
-      <View style={[styles.header, { borderBottomColor: border }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <IconSymbol name="chevron.left" size={24} color={primary} />
-        </Pressable>
-        <ThemedText type="subtitle">{match.competition}</ThemedText>
-        <View style={{ width: 24 }} />
-      </View>
+      <Header
+        onBack={() => router.back()}
+        border={border}
+        primary={primary}
+        title={match.competition.leagueName}
+      />
 
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={onRefresh}
-            tintColor={primary}
-          />
+          <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={primary} />
         }
       >
-        <View style={styles.scoreSection}>
-          {match.status === 'live' && (
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <ThemedText style={styles.statusText}>{match.minute}'</ThemedText>
+        <View style={[styles.hero, { borderBottomColor: border }]}> 
+          <ThemedText style={styles.compMeta}>
+            {match.competition.country} • {match.competition.seasonName}
+          </ThemedText>
+
+          <View style={styles.scoreRow}>
+            <TeamPill name={homeName} border={border} />
+            <View style={styles.scoreWrap}>
+              <ThemedText type="subtitle" style={styles.scoreText}>
+                {match.score.home ?? '-'} : {match.score.away ?? '-'}
+              </ThemedText>
             </View>
-          )}
-
-          {(match.status === 'finished' || match.status === 'halftime') && (
-            <ThemedText style={styles.statusLabel}>
-              {match.status === 'finished' ? 'Full Time' : 'Half Time'}
-            </ThemedText>
-          )}
-
-          {match.status === 'scheduled' && (
-            <ThemedText style={styles.kickoffTime}>{match.kickoffTime}</ThemedText>
-          )}
-
-          <View style={styles.teams}>
-            <View style={styles.teamRow}>
-              <View style={styles.teamInfo}>
-                <View style={[styles.teamBadge, { borderColor: border }]}>
-                  <ThemedText style={styles.teamBadgeText}>
-                    {match.homeTeamShort}
-                  </ThemedText>
-                </View>
-                <ThemedText style={styles.teamName}>{match.homeTeam}</ThemedText>
-              </View>
-              {match.status !== 'scheduled' && (
-                <ThemedText style={styles.teamScore}>{match.homeScore}</ThemedText>
-              )}
-            </View>
-
-            <View style={styles.teamRow}>
-              <View style={styles.teamInfo}>
-                <View style={[styles.teamBadge, { borderColor: border }]}>
-                  <ThemedText style={styles.teamBadgeText}>
-                    {match.awayTeamShort}
-                  </ThemedText>
-                </View>
-                <ThemedText style={styles.teamName}>{match.awayTeam}</ThemedText>
-              </View>
-              {match.status !== 'scheduled' && (
-                <ThemedText style={styles.teamScore}>{match.awayScore}</ThemedText>
-              )}
-            </View>
+            <TeamPill name={awayName} border={border} />
           </View>
+
+          <View style={[styles.statusBadge, { backgroundColor: `${statusColor(match.status)}20` }]}>
+            <ThemedText style={[styles.statusLabel, { color: statusColor(match.status) }]}>
+              {status}
+            </ThemedText>
+          </View>
+
+          <ThemedText style={styles.venue}>{match.venue ?? 'Venue TBA'}</ThemedText>
         </View>
 
-        <View style={[styles.infoCard, { backgroundColor: background, borderColor: border }]}>
-          <InfoRow label="Venue" value={match.venue || 'TBA'} border={border} />
-          <InfoRow label="Referee" value={match.referee || 'TBA'} border={border} />
-          <InfoRow label="Date" value={match.date} border={border} last />
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+          {TABS.map((tab) => (
+            <Pressable
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
+              style={[
+                styles.tab,
+                { borderColor: border, backgroundColor: activeTab === tab.key ? `${primary}20` : card },
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.tabText,
+                  { color: activeTab === tab.key ? primary : undefined },
+                ]}
+              >
+                {tab.label}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </ScrollView>
 
-        {match.timeline && match.timeline.length > 0 && (
+        {activeTab === 'overview' && (
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Match Events</ThemedText>
-            <View style={[styles.timeline, { borderColor: border }]}>
-              {match.timeline.map((event, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.timelineItem,
-                    i !== match.timeline.length - 1 && {
-                      borderBottomWidth: 1,
-                      borderBottomColor: border,
-                    },
-                  ]}
-                >
-                  <View style={styles.timelineLeft}>
-                    <ThemedText style={styles.timelineMinute}>
-                      {event.minute}'
-                    </ThemedText>
-                    <View style={styles.timelineIcon}>
-                      <ThemedText style={styles.timelineIconText}>
-                        {event.type === 'goal' ? '⚽' : event.type === 'yellow' ? '🟨' : event.type === 'red' ? '🟥' : '🔄'}
-                      </ThemedText>
-                    </View>
-                  </View>
-                  <View style={styles.timelineRight}>
-                    <ThemedText style={styles.timelinePlayer}>
-                      {event.player}
-                    </ThemedText>
-                    {event.assist && (
-                      <ThemedText style={styles.timelineAssist}>
-                        Assist: {event.assist}
-                      </ThemedText>
-                    )}
-                    <ThemedText style={styles.timelineTeam}>
-                      {event.team}
-                    </ThemedText>
-                  </View>
+            {match.prediction ? (
+              <View style={[styles.panel, { borderColor: border }]}> 
+                <ThemedText type="defaultSemiBold">Win Probability</ThemedText>
+                <View style={styles.probRow}>
+                  <ProbItem label={homeName} value={match.prediction.homeWinProb} />
+                  <ProbItem label="Draw" value={match.prediction.drawProb} />
+                  <ProbItem label={awayName} value={match.prediction.awayWinProb} />
                 </View>
-              ))}
+              </View>
+            ) : null}
+
+            <View style={[styles.panel, { borderColor: border }]}> 
+              <ThemedText type="defaultSemiBold">Latest Event</ThemedText>
+              {match.lastEvent ? (
+                <ThemedText style={styles.eventLine}>
+                  {`${match.lastEvent.minute}'`} {match.lastEvent.teamName} • {match.lastEvent.type.replaceAll('_', ' ')}
+                </ThemedText>
+              ) : (
+                <ThemedText style={styles.muted}>No events yet</ThemedText>
+              )}
             </View>
           </View>
         )}
 
-        {match.stats && (
+        {activeTab === 'stats' && (
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Match Statistics</ThemedText>
-            <View style={[styles.stats, { borderColor: border }]}>
-              <StatBar
-                label="Possession"
-                homeValue={match.stats.possession.home}
-                awayValue={match.stats.possession.away}
-                primary={primary}
-                border={border}
-              />
-              <StatBar
-                label="Shots"
-                homeValue={match.stats.shots.home}
-                awayValue={match.stats.shots.away}
-                primary={primary}
-                border={border}
-              />
-              <StatBar
-                label="Shots on Target"
-                homeValue={match.stats.shotsOnTarget.home}
-                awayValue={match.stats.shotsOnTarget.away}
-                primary={primary}
-                border={border}
-              />
-              <StatBar
-                label="Corners"
-                homeValue={match.stats.corners.home}
-                awayValue={match.stats.corners.away}
-                primary={primary}
-                border={border}
-                last
-              />
+            <StatsPanel
+              border={border}
+              homeName={homeName}
+              awayName={awayName}
+              home={match.stats.home}
+              away={match.stats.away}
+            />
+          </View>
+        )}
+
+        {activeTab === 'lineup' && (
+          <View style={styles.section}>
+            <LineupPanel
+              border={border}
+              title={`${homeName} XI`}
+              starters={match.lineups.home.starters}
+              bench={match.lineups.home.bench}
+            />
+            <LineupPanel
+              border={border}
+              title={`${awayName} XI`}
+              starters={match.lineups.away.starters}
+              bench={match.lineups.away.bench}
+            />
+          </View>
+        )}
+
+        {activeTab === 'events' && (
+          <View style={styles.section}>
+            <View style={[styles.panel, { borderColor: border }]}> 
+              {match.timeline.length === 0 ? (
+                <ThemedText style={styles.muted}>No events recorded</ThemedText>
+              ) : (
+                match.timeline.map((event) => (
+                  <View key={event.id} style={[styles.eventRow, { borderBottomColor: border }]}>
+                    <ThemedText style={styles.eventMinute}>{`${event.minute}'`}</ThemedText>
+                    <View style={styles.eventInfo}>
+                      <ThemedText type="defaultSemiBold">{event.teamName}</ThemedText>
+                      <ThemedText style={styles.eventLine}>
+                        {event.type.replaceAll('_', ' ')}
+                        {event.player ? ` • ${event.player.fullName}` : ''}
+                      </ThemedText>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+        )}
+
+        {activeTab === 'standings' && (
+          <View style={styles.section}>
+            <View style={[styles.panel, { borderColor: border }]}> 
+              <ThemedText type="defaultSemiBold">
+                {match.standings.isLiveAdjusted ? 'Live Table Projection' : 'League Table'}
+              </ThemedText>
+              {tableRows.map((row) => (
+                <StandingRow
+                  key={row.teamId}
+                  row={row}
+                  border={border}
+                  highlight={row.teamId === match.teams.home.id || row.teamId === match.teams.away.id}
+                />
+              ))}
             </View>
           </View>
         )}
@@ -231,285 +289,256 @@ export default function MatchDetailScreen() {
   );
 }
 
-function InfoRow({ label, value, border, last }: any) {
+function Header({
+  onBack,
+  border,
+  primary,
+  title,
+}: {
+  onBack: () => void;
+  border: string;
+  primary: string;
+  title: string;
+}) {
   return (
-    <View
-      style={[
-        styles.infoRow,
-        !last && { borderBottomWidth: 1, borderBottomColor: border },
-      ]}
-    >
-      <ThemedText style={styles.infoLabel}>{label}</ThemedText>
-      <ThemedText style={styles.infoValue}>{value}</ThemedText>
+    <View style={[styles.header, { borderBottomColor: border }]}> 
+      <Pressable onPress={onBack} hitSlop={12}>
+        <IconSymbol name="chevron.left" size={24} color={primary} />
+      </Pressable>
+      <ThemedText numberOfLines={1} style={styles.headerTitle}>
+        {title}
+      </ThemedText>
+      <View style={styles.headerRight} />
     </View>
   );
 }
 
-function StatBar({ label, homeValue, awayValue, primary, border, last }: any) {
-  const total = homeValue + awayValue;
-  const homePercent = total > 0 ? (homeValue / total) * 100 : 50;
-  const awayPercent = total > 0 ? (awayValue / total) * 100 : 50;
+function TeamPill({ name, border }: { name: string; border: string }) {
+  return (
+    <View style={[styles.teamPill, { borderColor: border }]}> 
+      <ThemedText numberOfLines={1} style={styles.teamName}>
+        {name}
+      </ThemedText>
+    </View>
+  );
+}
+
+function ProbItem({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={styles.probItem}>
+      <ThemedText style={styles.muted} numberOfLines={1}>
+        {label}
+      </ThemedText>
+      <ThemedText type="defaultSemiBold">{value}%</ThemedText>
+    </View>
+  );
+}
+
+function StatsPanel({
+  border,
+  homeName,
+  awayName,
+  home,
+  away,
+}: {
+  border: string;
+  homeName: string;
+  awayName: string;
+  home: MatchDetails['stats']['home'];
+  away: MatchDetails['stats']['away'];
+}) {
+  const rows = [
+    { key: 'Possession', home: home?.possession, away: away?.possession, suffix: '%' },
+    { key: 'Shots On Target', home: home?.shotsOnTarget, away: away?.shotsOnTarget },
+    { key: 'Shots Off Target', home: home?.shotsOffTarget, away: away?.shotsOffTarget },
+    { key: 'Corners', home: home?.corners, away: away?.corners },
+    { key: 'Fouls', home: home?.fouls, away: away?.fouls },
+    { key: 'Yellow Cards', home: home?.yellowCards, away: away?.yellowCards },
+    { key: 'Red Cards', home: home?.redCards, away: away?.redCards },
+    { key: 'Pass Accuracy', home: home?.passAccuracy, away: away?.passAccuracy, suffix: '%' },
+  ];
 
   return (
-    <View
-      style={[
-        styles.statRow,
-        !last && { borderBottomWidth: 1, borderBottomColor: border },
-      ]}
-    >
-      <View style={styles.statValues}>
-        <ThemedText style={styles.statValue}>{homeValue}</ThemedText>
-        <ThemedText style={styles.statLabel}>{label}</ThemedText>
-        <ThemedText style={styles.statValue}>{awayValue}</ThemedText>
+    <View style={[styles.panel, { borderColor: border }]}> 
+      <View style={[styles.statsHeader, { borderBottomColor: border }]}> 
+        <ThemedText numberOfLines={1} style={styles.teamHeaderText}>{homeName}</ThemedText>
+        <ThemedText style={styles.muted}>Stat</ThemedText>
+        <ThemedText numberOfLines={1} style={[styles.teamHeaderText, styles.teamHeaderTextRight]}>{awayName}</ThemedText>
       </View>
-      <View style={styles.statBar}>
-        <View
-          style={[
-            styles.statBarHome,
-            { width: `${homePercent}%`, backgroundColor: primary },
-          ]}
-        />
-        <View
-          style={[
-            styles.statBarAway,
-            { width: `${awayPercent}%`, backgroundColor: '#94a3b8' },
-          ]}
-        />
-      </View>
+      {rows.map((row) => (
+        <View key={row.key} style={[styles.statsRow, { borderBottomColor: border }]}> 
+          <ThemedText>{formatStat(row.home, row.suffix)}</ThemedText>
+          <ThemedText style={styles.muted}>{row.key}</ThemedText>
+          <ThemedText>{formatStat(row.away, row.suffix)}</ThemedText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function formatStat(value: number | null | undefined, suffix = '') {
+  if (value === null || value === undefined) return '-';
+  return `${value}${suffix}`;
+}
+
+function LineupPanel({
+  border,
+  title,
+  starters,
+  bench,
+}: {
+  border: string;
+  title: string;
+  starters: MatchDetails['lineups']['home']['starters'];
+  bench: MatchDetails['lineups']['home']['bench'];
+}) {
+  return (
+    <View style={[styles.panel, { borderColor: border }]}> 
+      <ThemedText type="defaultSemiBold">{title}</ThemedText>
+      <ThemedText style={styles.groupLabel}>Starters</ThemedText>
+      {starters.length === 0 ? <ThemedText style={styles.muted}>No lineup data</ThemedText> : null}
+      {starters.map((player) => (
+        <ThemedText key={player.id} style={styles.playerLine}>
+          {player.jerseyNumber ? `#${player.jerseyNumber} ` : ''}
+          {player.player.fullName} ({player.position})
+        </ThemedText>
+      ))}
+
+      <ThemedText style={styles.groupLabel}>Bench</ThemedText>
+      {bench.length === 0 ? <ThemedText style={styles.muted}>No bench data</ThemedText> : null}
+      {bench.map((player) => (
+        <ThemedText key={player.id} style={styles.playerLine}>
+          {player.jerseyNumber ? `#${player.jerseyNumber} ` : ''}
+          {player.player.fullName} ({player.position})
+        </ThemedText>
+      ))}
+    </View>
+  );
+}
+
+function StandingRow({
+  row,
+  border,
+  highlight,
+}: {
+  row: MatchStandingRow;
+  border: string;
+  highlight: boolean;
+}) {
+  return (
+    <View style={[styles.standingRow, { borderBottomColor: border, backgroundColor: highlight ? '#10b98114' : 'transparent' }]}> 
+      <ThemedText style={styles.standingPos}>{row.position}</ThemedText>
+      <ThemedText numberOfLines={1} style={styles.standingTeam}>{row.team.club.name}</ThemedText>
+      <ThemedText style={styles.standingPts}>{row.points}</ThemedText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-
+  container: { flex: 1 },
   header: {
     paddingTop: 56,
+    paddingBottom: 16,
     paddingHorizontal: 20,
-    paddingBottom: 18,
     borderBottomWidth: 1,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-
-  content: {
-    paddingBottom: 40,
-  },
-
-  loading: {
-    paddingTop: 80,
-    alignItems: 'center',
-  },
-
-  empty: {
-    paddingTop: 80,
-    alignItems: 'center',
-  },
-  emptyText: {
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
     fontSize: 15,
-    opacity: 0.6,
+    marginHorizontal: 12,
   },
-
-  scoreSection: {
+  headerRight: { width: 24 },
+  content: { paddingBottom: 40 },
+  loading: { paddingTop: 80, alignItems: 'center' },
+  hero: {
     paddingHorizontal: 20,
-    paddingTop: 32,
-    paddingBottom: 32,
-    alignItems: 'center',
-    gap: 24,
+    paddingTop: 18,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    gap: 10,
   },
+  compMeta: { fontSize: 13, opacity: 0.7, textAlign: 'center' },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  scoreWrap: { minWidth: 88, alignItems: 'center' },
+  scoreText: { fontSize: 28 },
+  teamPill: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  teamName: { fontSize: 14, textAlign: 'center' },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
+    alignSelf: 'center',
+    borderRadius: 999,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: '#ef444410',
   },
-  statusDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#ef4444',
-  },
-  statusText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#ef4444',
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    opacity: 0.7,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  kickoffTime: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-
-  teams: {
-    width: '100%',
-    gap: 20,
-  },
-  teamRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  teamInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginRight: 16,
-  },
-  teamBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  teamBadgeText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  teamName: {
-    fontSize: 18,
-    fontWeight: '600',
-    flex: 1,
-  },
-  teamScore: {
-    fontSize: 32,
-    fontWeight: '700',
-    minWidth: 48,
-    textAlign: 'right',
-  },
-
-  infoCard: {
-    marginHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  infoLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    opacity: 0.7,
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  section: {
-    marginTop: 32,
+  statusLabel: { fontSize: 12, fontWeight: '700' },
+  venue: { textAlign: 'center', fontSize: 13, opacity: 0.7 },
+  tabs: {
     paddingHorizontal: 20,
+    paddingVertical: 14,
+    gap: 10,
   },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-
-  timeline: {
-    borderRadius: 12,
+  tab: {
     borderWidth: 1,
-    overflow: 'hidden',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  timelineItem: {
+  tabText: { fontSize: 13, fontWeight: '600' },
+  section: { paddingHorizontal: 20, gap: 12 },
+  panel: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+  },
+  probRow: { flexDirection: 'row', gap: 8 },
+  probItem: { flex: 1, alignItems: 'center', gap: 4 },
+  muted: { fontSize: 13, opacity: 0.65 },
+  eventLine: { fontSize: 14, opacity: 0.9 },
+  eventRow: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 14,
+    gap: 10,
+    borderBottomWidth: 1,
+    paddingVertical: 10,
   },
-  timelineLeft: {
-    alignItems: 'center',
-    gap: 8,
-    width: 50,
-  },
-  timelineMinute: {
-    fontSize: 13,
-    fontWeight: '700',
-    opacity: 0.6,
-  },
-  timelineIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timelineIconText: {
-    fontSize: 16,
-  },
-  timelineRight: {
-    flex: 1,
-    gap: 4,
-  },
-  timelinePlayer: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  timelineAssist: {
-    fontSize: 13,
-    opacity: 0.6,
-  },
-  timelineTeam: {
-    fontSize: 13,
-    fontWeight: '500',
-    opacity: 0.7,
-    marginTop: 2,
-  },
-
-  stats: {
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  statRow: {
-    padding: 16,
-    gap: 12,
-  },
-  statValues: {
+  eventMinute: { width: 36, fontSize: 13, opacity: 0.75 },
+  eventInfo: { flex: 1, gap: 2 },
+  statsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderBottomWidth: 1,
+    paddingBottom: 8,
   },
-  statValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    minWidth: 32,
-  },
-  statLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    opacity: 0.7,
-  },
-  statBar: {
-    height: 6,
-    borderRadius: 3,
+  teamHeaderText: { flex: 1, fontSize: 13 },
+  teamHeaderTextRight: { textAlign: 'right' },
+  statsRow: {
     flexDirection: 'row',
-    overflow: 'hidden',
-    backgroundColor: '#f3f4f6',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    paddingVertical: 8,
   },
-  statBarHome: {
-    height: '100%',
+  groupLabel: { fontSize: 12, opacity: 0.65, textTransform: 'uppercase' },
+  playerLine: { fontSize: 14 },
+  standingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    paddingHorizontal: 8,
   },
-  statBarAway: {
-    height: '100%',
-  },
+  standingPos: { width: 26, fontSize: 13 },
+  standingTeam: { flex: 1, fontSize: 14 },
+  standingPts: { width: 28, textAlign: 'right', fontWeight: '700' },
 });

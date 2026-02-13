@@ -122,6 +122,39 @@ app.get("/:id/stats", createRateLimiter(50, 60), async (c) => {
   return c.json(stats);
 });
 
+app.get("/:id/matches", createRateLimiter(80, 60), async (c) => {
+  const id = c.req.param("id");
+  const status = c.req.query("status");
+  const limitParam = c.req.query("limit");
+  const limit = Math.min(Number(limitParam ?? "20") || 20, 50);
+
+  const data = await db.query.matches.findMany({
+    where: and(
+      sql`(${matches.homeTeamId} = ${id} OR ${matches.awayTeamId} = ${id})`,
+      status ? eq(matches.status, status) : undefined,
+    ),
+    with: {
+      season: {
+        with: {
+          league: true,
+        },
+      },
+      homeTeam: { with: { club: true } },
+      awayTeam: { with: { club: true } },
+    },
+    orderBy: [desc(matches.matchDate)],
+    limit,
+  });
+
+  return c.json(
+    data.map((match) => ({
+      ...match,
+      competition: `${match.season.league.name} • ${match.season.name}`,
+      isHome: match.homeTeamId === id,
+    })),
+  );
+});
+
 app.get("/:id/details", createRateLimiter(50, 60), async (c) => {
   const id = c.req.param("id");
 

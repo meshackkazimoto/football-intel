@@ -1,39 +1,114 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   View,
-  Pressable,
-  RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { leaguesService } from '@/services/leagues/leagues.service';
+import { matchesService } from '@/services/matches/matches.service';
 
 export default function StandingsScreen() {
   const primary = useThemeColor({}, 'primary');
   const border = useThemeColor({}, 'border');
-  const background = useThemeColor({}, 'background');
+  const card = useThemeColor({}, 'card');
 
-  // TODO: replace with selected season from UI
-  const [seasonId] = useState<string | null>(null);
+  const [leagueId, setLeagueId] = useState<string | null>(null);
+  const [seasonId, setSeasonId] = useState<string | null>(null);
+  const [liveMatchId, setLiveMatchId] = useState<string | null>(null);
+
+  const { data: leagues = [] } = useQuery({
+    queryKey: ['leagues'],
+    queryFn: leaguesService.getLeagues,
+  });
+
+  useEffect(() => {
+    if (!leagueId && leagues.length > 0) {
+      setLeagueId(leagues[0].id);
+    }
+  }, [leagueId, leagues]);
+
+  const { data: seasons = [] } = useQuery({
+    queryKey: ['leagues', leagueId, 'seasons'],
+    queryFn: () => leaguesService.getSeasons(leagueId!),
+    enabled: !!leagueId,
+  });
+
+  useEffect(() => {
+    if (!seasons.length) return;
+    if (seasonId && seasons.some((season) => season.id === seasonId)) {
+      return;
+    }
+    const current = seasons.find((season) => season.isCurrent);
+    const nextSeasonId = current?.id ?? seasons[0].id;
+    setSeasonId(nextSeasonId);
+    setLiveMatchId(null);
+  }, [seasons, seasonId]);
 
   const {
-    data,
+    data: standingsData,
     isLoading,
     refetch,
     isRefetching,
   } = useQuery({
-    enabled: !!seasonId,
     queryKey: ['standings', seasonId],
     queryFn: () => leaguesService.getStandings(seasonId!),
+    enabled: !!seasonId,
   });
 
-  const standings = data?.standings ?? [];
-  const league = data?.league;
+  const { data: liveMatches } = useQuery({
+    queryKey: ['matches', 'live', seasonId],
+    queryFn: () => matchesService.getLive({ seasonId: seasonId! }),
+    enabled: !!seasonId,
+    refetchInterval: 20000,
+  });
+
+  useEffect(() => {
+    if (!liveMatches?.data.length) {
+      setLiveMatchId(null);
+      return;
+    }
+
+    setLiveMatchId((current) => {
+      if (current && liveMatches.data.some((match) => match.id === current)) {
+        return current;
+      }
+      return liveMatches.data[0].id;
+    });
+  }, [liveMatches]);
+
+  const { data: liveMatchDetails } = useQuery({
+    queryKey: ['matches', 'details', liveMatchId],
+    queryFn: () => matchesService.getDetails(liveMatchId!),
+    enabled: !!liveMatchId,
+    refetchInterval: 20000,
+  });
+
+  const rows = useMemo(() => {
+    if (liveMatchDetails?.standings.liveTable.length) {
+      return liveMatchDetails.standings.liveTable.map((row) => ({
+        teamId: row.team.id,
+        position: row.position,
+        played: row.played,
+        points: row.points,
+        displayName: row.team.club.name,
+      }));
+    }
+
+    return (standingsData?.standings ?? []).map((row) => ({
+      teamId: row.team.id,
+      position: row.position,
+      played: row.played,
+      points: row.points,
+      displayName: row.team.clubName,
+    }));
+  }, [standingsData, liveMatchDetails]);
 
   const onRefresh = useCallback(() => {
     refetch();
@@ -41,263 +116,219 @@ export default function StandingsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, { borderBottomColor: border }]}>
+      <View style={[styles.header, { borderBottomColor: border }]}> 
         <ThemedText type="title" style={styles.title}>
-          {league ? `${league.name}` : 'Standings'}
+          Standings
         </ThemedText>
-
-        {league && (
+        {standingsData?.league ? (
           <ThemedText style={styles.subtitle}>
-            {league.country} • {league.season}
+            {standingsData.league.name} • {standingsData.league.season}
           </ThemedText>
-        )}
+        ) : null}
       </View>
 
-      {/* Content */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filters}
+      >
+        {leagues.map((league) => (
+          <Pressable
+            key={league.id}
+            onPress={() => {
+              setLeagueId(league.id);
+              setSeasonId(null);
+              setLiveMatchId(null);
+            }}
+            style={[
+              styles.filterChip,
+              {
+                borderColor: border,
+                backgroundColor: league.id === leagueId ? `${primary}20` : card,
+              },
+            ]}
+          >
+            <ThemedText style={{ color: league.id === leagueId ? primary : undefined }}>
+              {league.shortName || league.name}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filters}
+      >
+        {seasons.map((season) => (
+          <Pressable
+            key={season.id}
+            onPress={() => {
+              setSeasonId(season.id);
+              setLiveMatchId(null);
+            }}
+            style={[
+              styles.filterChip,
+              {
+                borderColor: border,
+                backgroundColor: season.id === seasonId ? `${primary}20` : card,
+              },
+            ]}
+          >
+            <ThemedText style={{ color: season.id === seasonId ? primary : undefined }}>
+              {season.name}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      {liveMatches?.data?.length ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.liveMatchesWrap}
+        >
+          {liveMatches.data.map((match) => {
+            const label = `${match.homeTeam.club.name} ${match.score.home ?? 0}-${match.score.away ?? 0} ${match.awayTeam.club.name}`;
+            const selected = match.id === liveMatchId;
+
+            return (
+              <Pressable
+                key={match.id}
+                onPress={() => setLiveMatchId(match.id)}
+                style={[
+                  styles.liveMatchChip,
+                  {
+                    borderColor: border,
+                    backgroundColor: selected ? '#dc262620' : card,
+                  },
+                ]}
+              >
+                <ThemedText style={[styles.liveMatchText, selected ? { color: '#dc2626' } : null]}>
+                  LIVE {label}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefetching && !isLoading}
-            onRefresh={onRefresh}
-            tintColor={primary}
-          />
+          <RefreshControl refreshing={isRefetching && !isLoading} onRefresh={onRefresh} tintColor={primary} />
         }
       >
         {isLoading ? (
           <View style={styles.loading}>
             <ActivityIndicator size="large" color={primary} />
           </View>
-        ) : standings.length === 0 ? (
-          <View style={styles.empty}>
-            <ThemedText style={styles.emptyText}>
-              No standings available
-            </ThemedText>
+        ) : rows.length === 0 ? (
+          <View style={styles.loading}>
+            <ThemedText>No standings available</ThemedText>
           </View>
         ) : (
-          <>
-            {/* Table Header */}
-            <View style={[styles.tableHeader, { borderBottomColor: border }]}>
-              <View style={styles.posCol}>
-                <ThemedText style={styles.headerText}>#</ThemedText>
-              </View>
-              <View style={styles.teamCol}>
-                <ThemedText style={styles.headerText}>Team</ThemedText>
-              </View>
-              <View style={styles.statCol}>
-                <ThemedText style={styles.headerText}>P</ThemedText>
-              </View>
-              <View style={styles.statCol}>
-                <ThemedText style={styles.headerText}>GD</ThemedText>
-              </View>
-              <View style={styles.ptsCol}>
-                <ThemedText style={styles.headerText}>Pts</ThemedText>
-              </View>
+          <View style={[styles.table, { borderColor: border }]}> 
+            <View style={[styles.tableHeader, { borderBottomColor: border }]}> 
+              <ThemedText style={styles.colPos}>#</ThemedText>
+              <ThemedText style={styles.colTeam}>Team</ThemedText>
+              <ThemedText style={styles.colP}>P</ThemedText>
+              <ThemedText style={styles.colPts}>Pts</ThemedText>
             </View>
 
-            {/* Table Body */}
-            <View style={styles.table}>
-              {standings.map((row) => {
-                const isChampion = row.status === 'champions';
-                const isRelegated = row.status === 'relegated';
-
-                return (
-                  <View
-                    key={row.team.id}
-                    style={[
-                      styles.row,
-                      { borderBottomColor: border },
-                      isChampion && styles.championRow,
-                      isRelegated && styles.relegationRow,
-                    ]}
-                  >
-                    <View style={styles.posCol}>
-                      <ThemedText style={styles.position}>
-                        {row.position}
-                      </ThemedText>
-                    </View>
-
-                    <View style={styles.teamCol}>
-                      <View style={styles.teamInfo}>
-                        <View
-                          style={[
-                            styles.badge,
-                            { backgroundColor: background },
-                          ]}
-                        >
-                          <ThemedText style={styles.badgeText}>
-                            {row.team.clubName.charAt(0)}
-                          </ThemedText>
-                        </View>
-
-                        <ThemedText
-                          style={styles.teamName}
-                          numberOfLines={1}
-                        >
-                          {row.team.clubName}
-                        </ThemedText>
-                      </View>
-                    </View>
-
-                    <View style={styles.statCol}>
-                      <ThemedText style={styles.stat}>
-                        {row.played}
-                      </ThemedText>
-                    </View>
-
-                    <View style={styles.statCol}>
-                      <ThemedText
-                        style={[
-                          styles.stat,
-                          row.goalDifference > 0 && { color: '#22c55e' },
-                          row.goalDifference < 0 && { color: '#ef4444' },
-                        ]}
-                      >
-                        {row.goalDifference > 0 ? '+' : ''}
-                        {row.goalDifference}
-                      </ThemedText>
-                    </View>
-
-                    <View style={styles.ptsCol}>
-                      <ThemedText style={styles.points}>
-                        {row.points}
-                      </ThemedText>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </>
+            {rows.map((row) => (
+              <View
+                key={row.teamId}
+                style={[
+                  styles.tableRow,
+                  { borderBottomColor: border },
+                  row.teamId === liveMatchDetails?.teams.home.id || row.teamId === liveMatchDetails?.teams.away.id
+                    ? styles.highlightRow
+                    : null,
+                ]}
+              >
+                <ThemedText style={styles.colPos}>{row.position}</ThemedText>
+                <ThemedText numberOfLines={1} style={styles.colTeam}>
+                  {row.displayName}
+                </ThemedText>
+                <ThemedText style={styles.colP}>{row.played}</ThemedText>
+                <ThemedText style={styles.colPts}>{row.points}</ThemedText>
+              </View>
+            ))}
+          </View>
         )}
       </ScrollView>
     </ThemedView>
   );
 }
 
-/* ========================= STYLES ========================= */
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-
+  container: { flex: 1 },
   header: {
     paddingTop: 56,
-    paddingHorizontal: 20,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-  },
-  title: {
-    fontSize: 22,
-  },
-  subtitle: {
-    fontSize: 13,
-    opacity: 0.6,
-    marginTop: 4,
-  },
-
-  content: {
-    paddingBottom: 40,
-  },
-
-  loading: {
-    paddingTop: 80,
-    alignItems: 'center',
-  },
-
-  empty: {
-    paddingTop: 80,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 15,
-    opacity: 0.6,
-  },
-
-  tableHeader: {
-    flexDirection: 'row',
     paddingHorizontal: 20,
-    paddingVertical: 12,
     borderBottomWidth: 1,
   },
-  headerText: {
+  title: { fontSize: 22 },
+  subtitle: { fontSize: 13, opacity: 0.65, marginTop: 4 },
+  filters: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  filterChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  liveMatchesWrap: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 10,
+    gap: 8,
+  },
+  liveMatchChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  liveMatchText: {
     fontSize: 12,
     fontWeight: '600',
-    opacity: 0.6,
-    textTransform: 'uppercase',
   },
-
-  table: {
+  content: {
     paddingHorizontal: 20,
+    paddingBottom: 40,
+    paddingTop: 6,
   },
-  row: {
+  loading: { paddingTop: 60, alignItems: 'center' },
+  table: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  tableHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
     borderBottomWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
   },
-
-  championRow: {
-    backgroundColor: '#22c55e12',
-    borderLeftWidth: 3,
-    borderLeftColor: '#22c55e',
-  },
-  relegationRow: {
-    backgroundColor: '#ef444412',
-    borderLeftWidth: 3,
-    borderLeftColor: '#ef4444',
-  },
-
-  posCol: {
-    width: 32,
-  },
-  position: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-
-  teamCol: {
-    flex: 1,
-    marginRight: 12,
-  },
-  teamInfo: {
+  tableRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  badge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  teamName: {
-    fontSize: 15,
-    fontWeight: '500',
-    flex: 1,
-  },
-
-  statCol: {
-    width: 42,
+    borderBottomWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     alignItems: 'center',
   },
-  stat: {
-    fontSize: 14,
-    fontWeight: '500',
+  highlightRow: {
+    backgroundColor: '#dc262612',
   },
-
-  ptsCol: {
-    width: 46,
-    alignItems: 'flex-end',
-  },
-  points: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  colPos: { width: 30, fontSize: 13 },
+  colTeam: { flex: 1, fontSize: 14 },
+  colP: { width: 30, textAlign: 'right', fontSize: 13 },
+  colPts: { width: 42, textAlign: 'right', fontSize: 14, fontWeight: '700' },
 });
