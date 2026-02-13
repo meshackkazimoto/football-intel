@@ -2,6 +2,7 @@ import { db } from "@football-intel/db/src/client";
 import {
   matches,
   matchEvents,
+  matchPossessions,
   playerContracts,
   playerSeasonStats,
   matchStats,
@@ -114,6 +115,30 @@ export async function computeMatchStats(matchId: string) {
   if (!match) return;
 
   const teamIds = [match.homeTeamId, match.awayTeamId];
+  const referenceSecond = Math.max(0, (match.currentMinute ?? 0) * 60);
+
+  const possessionRows = await db.query.matchPossessions.findMany({
+    where: eq(matchPossessions.matchId, matchId),
+  });
+
+  const possessionSecondsByTeam = new Map<string, number>();
+  for (const row of possessionRows) {
+    const end = row.endSecond ?? referenceSecond;
+    const duration = Math.max(0, end - row.startSecond);
+    possessionSecondsByTeam.set(
+      row.teamId,
+      (possessionSecondsByTeam.get(row.teamId) ?? 0) + duration,
+    );
+  }
+
+  const homeSeconds = possessionSecondsByTeam.get(match.homeTeamId) ?? 0;
+  const awaySeconds = possessionSecondsByTeam.get(match.awayTeamId) ?? 0;
+  const totalPossessionSeconds = homeSeconds + awaySeconds;
+  const homePossession =
+    totalPossessionSeconds > 0
+      ? Math.round((homeSeconds / totalPossessionSeconds) * 100)
+      : 50;
+  const awayPossession = totalPossessionSeconds > 0 ? 100 - homePossession : 50;
 
   for (const teamId of teamIds) {
     const aggregated = await db
@@ -133,12 +158,15 @@ export async function computeMatchStats(matchId: string) {
 
     const s = aggregated[0];
 
+    const possession =
+      teamId === match.homeTeamId ? homePossession : awayPossession;
+
     await db
       .insert(matchStats)
       .values({
         matchId,
         teamId,
-        possession: 50, // Placeholder
+        possession,
         shotsOnTarget: Number(s.shotsOnTarget) || 0,
         shotsOffTarget: Number(s.shotsOffTarget) || 0,
         corners: Number(s.corners) || 0,
@@ -151,6 +179,7 @@ export async function computeMatchStats(matchId: string) {
       .onConflictDoUpdate({
         target: [matchStats.matchId, matchStats.teamId],
         set: {
+          possession,
           shotsOnTarget: Number(s.shotsOnTarget) || 0,
           shotsOffTarget: Number(s.shotsOffTarget) || 0,
           corners: Number(s.corners) || 0,

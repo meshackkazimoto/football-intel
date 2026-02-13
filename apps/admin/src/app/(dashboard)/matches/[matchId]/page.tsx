@@ -10,6 +10,7 @@ import { matchEventsService } from "@/services/match-events/match-events.service
 import { playerContractsService } from "@/services/player-contracts/player-contracts.service";
 import { lineupsService } from "@/services/lineups/lineups.service";
 import { matchStatsService } from "@/services/match-stats/match-stats.service";
+import { matchPossessionsService } from "@/services/match-possessions/match-possessions.service";
 
 import {
   Play,
@@ -132,6 +133,8 @@ export default function MatchAdminPage() {
   const [lineupSuccess, setLineupSuccess] = useState<string | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [statsSuccess, setStatsSuccess] = useState<string | null>(null);
+  const [possessionError, setPossessionError] = useState<string | null>(null);
+  const [possessionSuccess, setPossessionSuccess] = useState<string | null>(null);
   const [homeLineup, setHomeLineup] = useState<
     Record<string, { selected: boolean; position: string; jerseyNumber?: number }>
   >({});
@@ -169,6 +172,11 @@ export default function MatchAdminPage() {
   const { data: statsRows = [] } = useQuery({
     queryKey: ["match-stats", matchId],
     queryFn: () => matchStatsService.getStatsByMatch(matchId),
+  });
+
+  const { data: possessionRows = [] } = useQuery({
+    queryKey: ["match-possessions", matchId],
+    queryFn: () => matchPossessionsService.getByMatch(matchId),
   });
 
   const eligiblePlayers = useMemo(() => {
@@ -266,6 +274,20 @@ export default function MatchAdminPage() {
     onError: (error) => {
       setStatsError(getApiErrorMessage(error, "Failed to save match stats."));
       setStatsSuccess(null);
+    },
+  });
+
+  const updatePossession = useMutation({
+    mutationFn: matchPossessionsService.upsert,
+    onSuccess: () => {
+      setPossessionError(null);
+      setPossessionSuccess("Possession updated.");
+      queryClient.invalidateQueries({ queryKey: ["match-possessions", matchId] });
+      queryClient.invalidateQueries({ queryKey: ["match-stats", matchId] });
+    },
+    onError: (error) => {
+      setPossessionError(getApiErrorMessage(error, "Failed to update possession."));
+      setPossessionSuccess(null);
     },
   });
 
@@ -489,6 +511,21 @@ export default function MatchAdminPage() {
     });
   };
 
+  const setPossessionTeam = (teamId: string | null) => {
+    if (match.status !== "live" && match.status !== "half_time") {
+      setPossessionError("Possession can be tracked only while match is active.");
+      setPossessionSuccess(null);
+      return;
+    }
+
+    updatePossession.mutate({
+      matchId,
+      teamId,
+      second: Math.max(0, (match.currentMinute ?? 0) * 60),
+      source: "manual",
+    });
+  };
+
   const updateStatsDraftField = (
     team: "home" | "away",
     field: keyof MatchStatsDraft,
@@ -510,6 +547,11 @@ export default function MatchAdminPage() {
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
   }, [match.events]);
+
+  const activePossession = useMemo(
+    () => possessionRows.find((entry) => entry.endSecond == null) ?? null,
+    [possessionRows],
+  );
 
   const savedHomeLineup = useMemo(
     () =>
@@ -672,6 +714,57 @@ export default function MatchAdminPage() {
             <PrimaryButton onClick={() => applyAdditionalMinutes(additionalMinutes)}>
               Apply Minutes
             </PrimaryButton>
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab === "overview" &&
+      canControl &&
+      (match.status === "live" || match.status === "half_time") ? (
+        <div className="rounded-2xl border border-slate-700 bg-slate-900 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-slate-100">Possession Tracking</h3>
+            <span className="text-xs text-slate-400">
+              Active:{" "}
+              {activePossession
+                ? activePossession.teamId === match.homeTeamId
+                  ? match.homeTeam.name
+                  : match.awayTeam.name
+                : "No team"}
+            </span>
+          </div>
+
+          {possessionError ? (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+              {possessionError}
+            </div>
+          ) : null}
+
+          {possessionSuccess ? (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+              {possessionSuccess}
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <PrimaryButton
+              onClick={() => setPossessionTeam(match.homeTeamId)}
+              loading={updatePossession.isPending}
+            >
+              {match.homeTeam.name} In Possession
+            </PrimaryButton>
+            <SecondaryButton
+              onClick={() => setPossessionTeam(match.awayTeamId)}
+              disabled={updatePossession.isPending}
+            >
+              {match.awayTeam.name} In Possession
+            </SecondaryButton>
+            <SecondaryButton
+              onClick={() => setPossessionTeam(null)}
+              disabled={updatePossession.isPending}
+            >
+              Stop Possession
+            </SecondaryButton>
           </div>
         </div>
       ) : null}
