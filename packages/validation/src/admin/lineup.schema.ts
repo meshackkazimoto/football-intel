@@ -13,6 +13,37 @@ export const CreateLineupSchema = z.object({
       }),
     )
     .min(1),
+}).superRefine((data, ctx) => {
+  const starters = data.players.filter((p) => p.isStarting).length;
+  if (starters !== 11) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Lineup must have exactly 11 starters",
+      path: ["players"],
+    });
+  }
+
+  const playerIds = data.players.map((p) => p.playerId);
+  const uniquePlayerIds = new Set(playerIds);
+  if (uniquePlayerIds.size !== playerIds.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Lineup contains duplicate playerId",
+      path: ["players"],
+    });
+  }
+
+  const jerseyNumbers = data.players
+    .map((p) => p.jerseyNumber)
+    .filter((n): n is number => typeof n === "number");
+  const uniqueJerseyNumbers = new Set(jerseyNumbers);
+  if (uniqueJerseyNumbers.size !== jerseyNumbers.length) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Lineup contains duplicate jersey numbers",
+      path: ["players"],
+    });
+  }
 });
 
 export const UpdateLineupSchema = CreateLineupSchema.partial();

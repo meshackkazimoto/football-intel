@@ -6,7 +6,7 @@ import {
   players,
   teams,
 } from "@football-intel/db/src/schema/core";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, lte, or, isNull, ne } from "drizzle-orm";
 import { auditLog } from "@football-intel/logger";
 import { requireRole } from "src/middleware/require-role";
 import {
@@ -25,6 +25,15 @@ app.use("*", requireRole(["SUPER_ADMIN", "ADMIN"]));
 
 app.post("/", async (c) => {
   const body = createPlayerContractSchema.parse(await c.req.json());
+  const startDate = body.startDate;
+  const endDate = body.endDate;
+
+  if (endDate && endDate < startDate) {
+    return c.json(
+      { error: "Contract endDate cannot be earlier than startDate" },
+      400,
+    );
+  }
 
   // Validate player
   const player = await db.query.players.findFirst({
@@ -42,33 +51,83 @@ app.post("/", async (c) => {
     return c.json({ error: "Team not found" }, 404);
   }
 
-  // Close existing active contract
-  await db
-    .update(playerContracts)
-    .set({
-      isCurrent: false,
-      endDate: body.startDate,
-    })
-    .where(
-      and(
-        eq(playerContracts.playerId, body.playerId),
-        eq(playerContracts.isCurrent, true),
-      ),
-    );
+  const currentContracts = await db.query.playerContracts.findMany({
+    where: and(
+      eq(playerContracts.playerId, body.playerId),
+      eq(playerContracts.isCurrent, true),
+    ),
+  });
 
-  // Create new contract
-  const [contract] = await db
-    .insert(playerContracts)
-    .values({
-      playerId: body.playerId,
-      teamId: body.teamId,
-      position: body.position,
-      jerseyNumber: body.jerseyNumber,
-      startDate: body.startDate,
-      endDate: body.endDate ?? null,
-      isCurrent: true,
-    })
-    .returning();
+  if (currentContracts.length > 1) {
+    return c.json(
+      {
+        error:
+          "Player has multiple active contracts. Resolve data before assigning.",
+      },
+      409,
+    );
+  }
+
+  const [currentContract] = currentContracts;
+  if (currentContract && startDate <= currentContract.startDate) {
+    return c.json(
+      {
+        error: "New contract startDate must be after current contract startDate.",
+      },
+      409,
+    );
+  }
+
+  const overlap = await db.query.playerContracts.findFirst({
+    where: and(
+      eq(playerContracts.playerId, body.playerId),
+      currentContract ? ne(playerContracts.id, currentContract.id) : undefined,
+      lte(playerContracts.startDate, endDate ?? "9999-12-31"),
+      or(
+        isNull(playerContracts.endDate),
+        gte(playerContracts.endDate, startDate),
+      ),
+    ),
+  });
+
+  if (overlap) {
+    return c.json(
+      {
+        error:
+          "Contract overlaps with another team assignment for this player.",
+      },
+      409,
+    );
+  }
+
+  const [contract] = await db.transaction(async (tx) => {
+    if (currentContract) {
+      await tx
+        .update(playerContracts)
+        .set({
+          isCurrent: false,
+          endDate: startDate,
+        })
+        .where(eq(playerContracts.id, currentContract.id));
+    }
+
+    return await tx
+      .insert(playerContracts)
+      .values({
+        playerId: body.playerId,
+        teamId: body.teamId,
+        position: body.position,
+        jerseyNumber: body.jerseyNumber,
+        startDate,
+        endDate: endDate ?? null,
+        isCurrent: true,
+      })
+      .returning();
+  });
+
+  if (!contract) {
+    return c.json({ error: "Could not create contract" }, 500);
+  }
 
   auditLog({
     action: "CREATE",
@@ -90,6 +149,21 @@ app.patch("/:id", async (c) => {
   const id = c.req.param("id");
   const body = updatePlayerContractSchema.parse(await c.req.json());
 
+  const existing = await db.query.playerContracts.findFirst({
+    where: eq(playerContracts.id, id),
+  });
+
+  if (!existing) {
+    return c.json({ error: "Contract not found" }, 404);
+  }
+
+  if (body.endDate && body.endDate < existing.startDate) {
+    return c.json(
+      { error: "Contract endDate cannot be earlier than startDate" },
+      400,
+    );
+  }
+
   const updateData = {
     position: body.position,
     jerseyNumber: body.jerseyNumber,
@@ -97,15 +171,26 @@ app.patch("/:id", async (c) => {
     isCurrent: body.isCurrent,
   };
 
-  const [updated] = await db
-    .update(playerContracts)
-    .set(updateData)
-    .where(eq(playerContracts.id, id))
-    .returning();
+  const [updated] = await db.transaction(async (tx) => {
+    if (body.isCurrent === true) {
+      await tx
+        .update(playerContracts)
+        .set({ isCurrent: false })
+        .where(
+          and(
+            eq(playerContracts.playerId, existing.playerId),
+            eq(playerContracts.isCurrent, true),
+            ne(playerContracts.id, id),
+          ),
+        );
+    }
 
-  if (!updated) {
-    return c.json({ error: "Contract not found" }, 404);
-  }
+    return await tx
+      .update(playerContracts)
+      .set(updateData)
+      .where(eq(playerContracts.id, id))
+      .returning();
+  });
 
   auditLog({
     action: "UPDATE",
@@ -152,14 +237,45 @@ app.get("/", async (c) => {
 app.delete("/:id", async (c) => {
   const id = c.req.param("id");
 
+  const existing = await db.query.playerContracts.findFirst({
+    where: eq(playerContracts.id, id),
+  });
+
+  if (!existing) {
+    return c.json({ error: "Contract not found" }, 404);
+  }
+
+  if (existing.isCurrent) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    const [terminated] = await db
+      .update(playerContracts)
+      .set({
+        isCurrent: false,
+        endDate: today,
+      })
+      .where(eq(playerContracts.id, id))
+      .returning();
+
+    auditLog({
+      action: "TERMINATE",
+      entity: "PLAYER_CONTRACT",
+      entityId: id,
+      userId: c.get("user").id,
+      metadata: { endDate: today },
+    });
+
+    return c.json({
+      ok: true,
+      mode: "terminated",
+      contract: terminated,
+    });
+  }
+
   const [deleted] = await db
     .delete(playerContracts)
     .where(eq(playerContracts.id, id))
     .returning();
-
-  if (!deleted) {
-    return c.json({ error: "Contract not found" }, 404);
-  }
 
   auditLog({
     action: "DELETE",

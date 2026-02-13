@@ -4,10 +4,10 @@ import { db } from "@football-intel/db/src/client";
 import {
     matches,
     matchEvents,
-    teams,
     players,
+    playerContracts,
 } from "@football-intel/db/src/schema/core";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, lte, isNull, or } from "drizzle-orm";
 import { MatchEventSchema } from "@football-intel/validation";
 import { StatsJobs, statsQueue } from "@football-intel/queue";
 import { logger } from "@football-intel/logger";
@@ -64,6 +64,8 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
         );
     }
 
+    const matchDate = match.matchDate.toISOString().slice(0, 10);
+
     // 3. Validate player(s) if provided
     if (playerId) {
         const player = await db.query.players.findFirst({
@@ -71,6 +73,25 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
         });
         if (!player) {
             return c.json({ error: "Player not found" }, 400);
+        }
+
+        const contract = await db.query.playerContracts.findFirst({
+            where: and(
+                eq(playerContracts.playerId, playerId),
+                eq(playerContracts.teamId, teamId),
+                lte(playerContracts.startDate, matchDate),
+                or(
+                    isNull(playerContracts.endDate),
+                    gte(playerContracts.endDate, matchDate),
+                ),
+            ),
+        });
+
+        if (!contract) {
+            return c.json(
+                { error: "Player is not assigned to this team for this match" },
+                409,
+            );
         }
     }
 
@@ -80,6 +101,28 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
         });
         if (!related) {
             return c.json({ error: "Related player not found" }, 400);
+        }
+
+        const relatedContract = await db.query.playerContracts.findFirst({
+            where: and(
+                eq(playerContracts.playerId, relatedPlayerId),
+                eq(playerContracts.teamId, teamId),
+                lte(playerContracts.startDate, matchDate),
+                or(
+                    isNull(playerContracts.endDate),
+                    gte(playerContracts.endDate, matchDate),
+                ),
+            ),
+        });
+
+        if (!relatedContract) {
+            return c.json(
+                {
+                    error:
+                        "Related player is not assigned to this team for this match",
+                },
+                409,
+            );
         }
     }
 

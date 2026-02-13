@@ -1,7 +1,15 @@
 import { Hono } from "hono";
 import { Session, User } from "lucia";
 import { db } from "@football-intel/db/src/client";
-import { players, countries } from "@football-intel/db/src/schema/core";
+import {
+  players,
+  countries,
+  playerContracts,
+  matchEvents,
+  matchLineups,
+  playerMatchRatings,
+  playerSeasonStats,
+} from "@football-intel/db/src/schema/core";
 import { eq } from "drizzle-orm";
 import {
   createPlayerSchema,
@@ -133,6 +141,35 @@ app.patch("/:id", async (c) => {
 
 app.delete("/:id", requireRole(["ADMIN"]), async (c) => {
   const id = c.req.param("id");
+
+  const [contractRef, eventRef, lineupRef, ratingRef, seasonStatsRef] =
+    await Promise.all([
+      db.query.playerContracts.findFirst({
+        where: eq(playerContracts.playerId, id),
+      }),
+      db.query.matchEvents.findFirst({
+        where: eq(matchEvents.playerId, id),
+      }),
+      db.query.matchLineups.findFirst({
+        where: eq(matchLineups.playerId, id),
+      }),
+      db.query.playerMatchRatings.findFirst({
+        where: eq(playerMatchRatings.playerId, id),
+      }),
+      db.query.playerSeasonStats.findFirst({
+        where: eq(playerSeasonStats.playerId, id),
+      }),
+    ]);
+
+  if (contractRef || eventRef || lineupRef || ratingRef || seasonStatsRef) {
+    return c.json(
+      {
+        error:
+          "Cannot hard-delete player with historical data. Terminate player contract instead.",
+      },
+      409,
+    );
+  }
 
   const [deleted] = await db
     .delete(players)
