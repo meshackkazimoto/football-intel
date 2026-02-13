@@ -156,15 +156,29 @@ app.post("/", enforceMatchUnlocked(), async (c) => {
         minute,
     });
 
-    if (eventType === "goal") {
-        const scoreUpdate =
-            teamId === match.homeTeamId
-                ? { homeScore: (match.homeScore ?? 0) + 1 }
-                : { awayScore: (match.awayScore ?? 0) + 1 };
+    const homeScore = match.homeScore ?? 0;
+    const awayScore = match.awayScore ?? 0;
+    const isHomeTeamEvent = teamId === match.homeTeamId;
 
+    if (eventType === "goal" || eventType === "penalty_scored") {
         await db
             .update(matches)
-            .set(scoreUpdate)
+            .set(
+                isHomeTeamEvent
+                    ? { homeScore: homeScore + 1 }
+                    : { awayScore: awayScore + 1 },
+            )
+            .where(eq(matches.id, matchId));
+    }
+
+    if (eventType === "own_goal") {
+        await db
+            .update(matches)
+            .set(
+                isHomeTeamEvent
+                    ? { awayScore: awayScore + 1 }
+                    : { homeScore: homeScore + 1 },
+            )
             .where(eq(matches.id, matchId));
     }
 

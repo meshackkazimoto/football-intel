@@ -101,6 +101,17 @@ export default function MatchAdminPage() {
     queryFn: () => matchesService.getMatchById(matchId),
   });
 
+  useEffect(() => {
+    if (!match) return;
+    if (match.status !== "live" && match.status !== "half_time") return;
+
+    const id = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] });
+    }, 5000);
+
+    return () => clearInterval(id);
+  }, [match?.status, matchId, queryClient]);
+
   const { data: teamContracts, isLoading: isLoadingTeamPlayers } = useQuery({
     queryKey: ["player-contracts", selectedTeamId],
     queryFn: () =>
@@ -352,6 +363,13 @@ export default function MatchAdminPage() {
       players: payloadPlayers,
     });
   };
+
+  const sortedEvents = useMemo(() => {
+    return [...(match.events ?? [])].sort((a, b) => {
+      if (a.minute !== b.minute) return a.minute - b.minute;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+  }, [match.events]);
 
   return (
     <div className="space-y-8">
@@ -762,25 +780,54 @@ export default function MatchAdminPage() {
           Match Timeline
         </h3>
 
-        {match.events?.length === 0 ? (
+        {sortedEvents.length === 0 ? (
           <p className="text-slate-500 text-sm">
             No events recorded yet.
           </p>
         ) : (
           <ul className="space-y-2 text-sm">
-            {match.events.map((e) => (
+            {sortedEvents.map((e) => {
+              const isHomeEvent = e.teamId === match.homeTeamId;
+              const playerName = e.player?.fullName ?? e.playerId ?? "—";
+              const eventLabel = e.eventType.replace(/_/g, " ");
+
+              return (
               <li
                 key={e.id}
-                className="flex justify-between border-b border-slate-800 pb-1"
+                className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-slate-800 pb-2"
               >
-                <span>
-                  {e.minute}&apos; {e.eventType.replace("_", " ")}
+                <div className="text-left">
+                  {isHomeEvent ? (
+                    <>
+                      <p className="text-slate-200">
+                        {eventLabel}
+                      </p>
+                      <p className="text-slate-500">
+                        {playerName}
+                      </p>
+                    </>
+                  ) : null}
+                </div>
+
+                <span className="text-slate-300 font-medium">
+                  {e.minute}&apos;
                 </span>
-                <span className="text-slate-500">
-                  {e.playerId ?? "—"}
-                </span>
+
+                <div className="text-right">
+                  {!isHomeEvent ? (
+                    <>
+                      <p className="text-slate-200">
+                        {eventLabel}
+                      </p>
+                      <p className="text-slate-500">
+                        {playerName}
+                      </p>
+                    </>
+                  ) : null}
+                </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>
