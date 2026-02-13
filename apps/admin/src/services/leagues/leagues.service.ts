@@ -1,5 +1,5 @@
 import { apiClient } from "../api-client";
-import { League, CreateLeagueInput } from "./types";
+import { League, CreateLeagueInput, UpdateLeagueInput } from "./types";
 
 export const leaguesService = {
   getLeagues: async (): Promise<League[]> => {
@@ -9,6 +9,17 @@ export const leaguesService = {
 
   createLeague: async (input: CreateLeagueInput): Promise<League> => {
     const { data } = await apiClient.post<League>("/admin/leagues", input);
+    return data;
+  },
+
+  updateLeague: async (
+    id: string,
+    input: UpdateLeagueInput,
+  ): Promise<League> => {
+    const { data } = await apiClient.patch<League>(
+      `/admin/leagues/${id}`,
+      input,
+    );
     return data;
   },
 

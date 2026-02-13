@@ -51,22 +51,30 @@ export default function StandingsPage() {
     queryFn: () => seasonsService.getSeasons(),
   });
 
+  const orderedSeasons = [...(seasons?.data ?? [])].sort((a, b) => {
+    if (a.isCurrent && !b.isCurrent) return -1;
+    if (!a.isCurrent && b.isCurrent) return 1;
+    return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+  });
+  const defaultSeasonId = orderedSeasons[0]?.id ?? "";
+  const effectiveSeasonId = selectedSeasonId || defaultSeasonId;
+
   // Fetch Standings
   const {
     data: standingsResponse,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["standings", selectedSeasonId],
-    queryFn: () => standingsService.getStandings(selectedSeasonId),
-    enabled: !!selectedSeasonId,
+    queryKey: ["standings", effectiveSeasonId],
+    queryFn: () => standingsService.getStandings(effectiveSeasonId),
+    enabled: !!effectiveSeasonId,
   });
 
   // Fetch Teams for dropdown (only when creating)
   const { data: teamsResponse } = useQuery({
-    queryKey: ["teams", selectedSeasonId],
-    queryFn: () => teamsService.getTeams(selectedSeasonId),
-    enabled: !!selectedSeasonId && showCreateForm,
+    queryKey: ["teams", effectiveSeasonId],
+    queryFn: () => teamsService.getTeams(effectiveSeasonId),
+    enabled: !!effectiveSeasonId && showCreateForm,
   });
 
   const standings = standingsResponse?.data ?? [];
@@ -102,12 +110,12 @@ export default function StandingsPage() {
   }, [registerCreate]);
 
   useEffect(() => {
-    if (!selectedSeasonId) return;
-    setValueCreate("seasonId", selectedSeasonId, {
+    if (!effectiveSeasonId) return;
+    setValueCreate("seasonId", effectiveSeasonId, {
       shouldValidate: true,
       shouldDirty: false,
     });
-  }, [selectedSeasonId, setValueCreate]);
+  }, [effectiveSeasonId, setValueCreate]);
 
   const createMutation = useMutation({
     mutationFn: standingsService.createStanding,
@@ -149,12 +157,12 @@ export default function StandingsPage() {
 
         <div className="flex gap-4">
           <select
-            value={selectedSeasonId}
+            value={effectiveSeasonId}
             onChange={(e) => setSelectedSeasonId(e.target.value)}
             className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-200"
           >
             <option value="">Select Season</option>
-            {seasons?.data.map((season) => (
+            {orderedSeasons.map((season) => (
               <option key={season.id} value={season.id}>
                 {season.name} ({season.league.name})
               </option>
@@ -164,9 +172,9 @@ export default function StandingsPage() {
           <PrimaryButton
             onClick={() => {
               setShowCreateForm((prev) => !prev);
-              if (!showCreateForm && selectedSeasonId) {
+              if (!showCreateForm && effectiveSeasonId) {
                 resetCreate({
-                  seasonId: selectedSeasonId,
+                  seasonId: effectiveSeasonId,
                   teamId: "",
                   position: 1,
                   played: 0,
@@ -181,7 +189,7 @@ export default function StandingsPage() {
                 });
               }
             }}
-            disabled={!selectedSeasonId}
+            disabled={!effectiveSeasonId}
           >
             <Plus className="w-4 h-4" />
             Add Team
@@ -292,7 +300,7 @@ export default function StandingsPage() {
       )}
 
       {/* Standings Table */}
-      {!selectedSeasonId ? (
+      {!effectiveSeasonId ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900 border border-slate-700 rounded-2xl">
           <Trophy className="w-12 h-12 mb-4 opacity-50" />
           <p className="text-lg font-bold">No Season Selected</p>

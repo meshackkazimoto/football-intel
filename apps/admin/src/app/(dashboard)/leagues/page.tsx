@@ -13,6 +13,7 @@ import { FormInput } from "@/components/ui/input";
 import { FormSelect } from "@/components/ui/select";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-section";
+import { Modal } from "@/components/ui/modal";
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ import {
 
 export default function LeaguesPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingLeague, setEditingLeague] = useState<League | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch Leagues
@@ -55,6 +57,19 @@ export default function LeaguesPage() {
     },
   });
 
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    reset: resetEdit,
+    formState: { errors: editErrors },
+  } = useForm<CreateLeagueInput>({
+    resolver: zodResolver(createLeagueSchema),
+    defaultValues: {
+      type: "league",
+      tier: 1,
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: leaguesService.createLeague,
     onSuccess: () => {
@@ -71,9 +86,49 @@ export default function LeaguesPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: CreateLeagueInput;
+    }) => leaguesService.updateLeague(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leagues"] });
+      setEditingLeague(null);
+      resetEdit();
+    },
+  });
+
   const onSubmit = (formData: CreateLeagueInput) => {
     createMutation.mutate(formData);
   };
+
+  const onEditSubmit = (formData: CreateLeagueInput) => {
+    if (!editingLeague) return;
+    updateMutation.mutate({
+      id: editingLeague.id,
+      input: formData,
+    });
+  };
+
+  const openEdit = (league: League) => {
+    setEditingLeague(league);
+    resetEdit({
+      name: league.name,
+      shortName: league.shortName ?? "",
+      countryId: league.countryId,
+      tier: league.tier,
+      type: league.type === "cup" ? "cup" : "league",
+      numberOfTeams: league.numberOfTeams ?? undefined,
+      logo: league.logo ?? undefined,
+    });
+  };
+
+  const sortedLeagues = [...(leagues ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
 
   return (
     <div className="space-y-6">
@@ -208,7 +263,7 @@ export default function LeaguesPage() {
             </TableHeader>
 
             <TableBody>
-              {leagues?.length === 0 ? (
+              {sortedLeagues.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={6}
@@ -218,7 +273,7 @@ export default function LeaguesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                leagues?.map((league: League) => (
+                sortedLeagues.map((league: League) => (
                   <TableRow
                     key={league.id}
                     className="hover:bg-slate-800/60 transition-colors"
@@ -262,7 +317,10 @@ export default function LeaguesPage() {
 
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <button className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500">
+                        <button
+                          onClick={() => openEdit(league)}
+                          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
@@ -281,6 +339,85 @@ export default function LeaguesPage() {
           </Table>
         </div>
       )}
+
+      <Modal
+        open={!!editingLeague}
+        onClose={() => setEditingLeague(null)}
+        title={editingLeague ? `Edit League: ${editingLeague.name}` : undefined}
+      >
+        <form
+          onSubmit={handleSubmitEdit(onEditSubmit)}
+          className="grid grid-cols-2 gap-4"
+        >
+          <FormInput
+            label="League Name *"
+            {...registerEdit("name")}
+            error={editErrors.name}
+          />
+
+          <FormInput
+            label="Short Name"
+            {...registerEdit("shortName")}
+            error={editErrors.shortName}
+          />
+
+          <FormSelect
+            label="Country"
+            {...registerEdit("countryId")}
+            error={editErrors.countryId}
+            options={
+              countries?.map((c) => ({
+                label: `${c.name} (${c.code})`,
+                value: c.id,
+              })) ?? []
+            }
+          />
+
+          <FormInput
+            label="Tier *"
+            type="number"
+            {...registerEdit("tier", { valueAsNumber: true })}
+            error={editErrors.tier}
+          />
+
+          <FormSelect
+            label="Type *"
+            {...registerEdit("type")}
+            error={editErrors.type}
+            options={[
+              { label: "League", value: "league" },
+              { label: "Cup", value: "cup" },
+            ]}
+          />
+
+          <FormInput
+            label="Number of Teams"
+            type="number"
+            {...registerEdit("numberOfTeams", { valueAsNumber: true })}
+            error={editErrors.numberOfTeams}
+          />
+
+          <div className="col-span-2">
+            <FormInput
+              label="Logo URL"
+              {...registerEdit("logo")}
+              error={editErrors.logo}
+            />
+          </div>
+
+          <div className="col-span-2 flex gap-3">
+            <PrimaryButton type="submit" loading={updateMutation.isPending}>
+              Save Changes
+            </PrimaryButton>
+            <SecondaryButton
+              type="button"
+              onClick={() => setEditingLeague(null)}
+            >
+              Cancel
+            </SecondaryButton>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

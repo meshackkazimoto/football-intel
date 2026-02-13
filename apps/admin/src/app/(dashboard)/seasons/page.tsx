@@ -7,12 +7,20 @@ import { leaguesService } from "@/services/leagues/leagues.service";
 import { Plus, Edit, Trash2, Loader2, Calendar } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { CreateSeasonInput, Season } from "@/services/seasons/types";
-import { createSeasonSchema } from "@/services/seasons/validation";
+import type {
+  CreateSeasonInput,
+  Season,
+  UpdateSeasonInput,
+} from "@/services/seasons/types";
+import {
+  createSeasonSchema,
+  updateSeasonSchema,
+} from "@/services/seasons/validation";
 import { FormInput } from "@/components/ui/input";
 import { FormSelect } from "@/components/ui/select";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/button";
 import { FormSection } from "@/components/ui/form-section";
+import { Modal } from "@/components/ui/modal";
 import {
   Table,
   TableBody,
@@ -24,6 +32,7 @@ import {
 
 export default function SeasonsPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingSeason, setEditingSeason] = useState<Season | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch Seasons
@@ -47,6 +56,15 @@ export default function SeasonsPage() {
     resolver: zodResolver(createSeasonSchema),
   });
 
+  const {
+    register: registerEdit,
+    handleSubmit: handleSubmitEdit,
+    reset: resetEdit,
+    formState: { errors: errorsEdit },
+  } = useForm<UpdateSeasonInput>({
+    resolver: zodResolver(updateSeasonSchema),
+  });
+
   const createMutation = useMutation({
     mutationFn: seasonsService.createSeason,
     onSuccess: () => {
@@ -63,11 +81,52 @@ export default function SeasonsPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: UpdateSeasonInput;
+    }) => seasonsService.updateSeason(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["seasons"] });
+      setEditingSeason(null);
+      resetEdit();
+    },
+  });
+
   const onSubmit = (formData: CreateSeasonInput) => {
     createMutation.mutate(formData);
   };
 
+  const onEditSubmit = (formData: UpdateSeasonInput) => {
+    if (!editingSeason) return;
+    updateMutation.mutate({
+      id: editingSeason.id,
+      input: formData,
+    });
+  };
+
+  const openEdit = (season: Season) => {
+    setEditingSeason(season);
+    resetEdit({
+      name: season.name,
+      startDate: season.startDate,
+      endDate: season.endDate,
+      isCurrent: season.isCurrent,
+    });
+  };
+
   const seasonsList = data?.data ?? [];
+  const sortedSeasons = [...seasonsList].sort((a, b) => {
+    if (a.isCurrent && !b.isCurrent) return -1;
+    if (!a.isCurrent && b.isCurrent) return 1;
+    const startDateDiff =
+      new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+    if (startDateDiff !== 0) return startDateDiff;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   return (
     <div className="space-y-6">
@@ -188,7 +247,7 @@ export default function SeasonsPage() {
             </TableHeader>
 
             <TableBody>
-              {seasonsList.length === 0 ? (
+              {sortedSeasons.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={5}
@@ -198,7 +257,7 @@ export default function SeasonsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                seasonsList.map((season: Season) => (
+                sortedSeasons.map((season: Season) => (
                   <TableRow
                     key={season.id}
                     className="hover:bg-slate-800/60 transition-colors"
@@ -244,7 +303,10 @@ export default function SeasonsPage() {
 
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <button className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500">
+                        <button
+                          onClick={() => openEdit(season)}
+                          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-500"
+                        >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
@@ -263,6 +325,63 @@ export default function SeasonsPage() {
           </Table>
         </div>
       )}
+
+      <Modal
+        open={!!editingSeason}
+        onClose={() => setEditingSeason(null)}
+        title={editingSeason ? `Edit Season: ${editingSeason.name}` : undefined}
+      >
+        <form
+          onSubmit={handleSubmitEdit(onEditSubmit)}
+          className="grid grid-cols-2 gap-4"
+        >
+          <div className="col-span-2">
+            <FormInput
+              label="Season Name *"
+              {...registerEdit("name")}
+              error={errorsEdit.name}
+            />
+          </div>
+
+            <FormInput
+              label="Start Date *"
+              type="date"
+              {...registerEdit("startDate")}
+              error={errorsEdit.startDate}
+            />
+
+            <FormInput
+              label="End Date *"
+              type="date"
+              {...registerEdit("endDate")}
+              error={errorsEdit.endDate}
+            />
+
+          <div className="col-span-2 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="editIsCurrent"
+              {...registerEdit("isCurrent")}
+              className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-slate-900"
+            />
+            <label htmlFor="editIsCurrent" className="text-sm text-slate-300">
+              Set as Current Active Season
+            </label>
+          </div>
+
+          <div className="col-span-2 flex gap-3">
+            <PrimaryButton type="submit" loading={updateMutation.isPending}>
+              Save Changes
+            </PrimaryButton>
+            <SecondaryButton
+              type="button"
+              onClick={() => setEditingSeason(null)}
+            >
+              Cancel
+            </SecondaryButton>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

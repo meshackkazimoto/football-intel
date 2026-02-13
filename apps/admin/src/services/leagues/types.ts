@@ -14,6 +14,7 @@ export interface League {
 }
 
 export type CreateLeagueInput = z.infer<typeof createLeagueSchema>;
+export type UpdateLeagueInput = Partial<CreateLeagueInput>;
 
 export interface LeaguesResponse {
   data: League[];

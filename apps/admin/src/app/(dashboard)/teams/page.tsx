@@ -34,15 +34,23 @@ export default function TeamsPage() {
     queryFn: () => seasonsService.getSeasons(),
   });
 
+  const orderedSeasons = [...(seasons?.data ?? [])].sort((a, b) => {
+    if (a.isCurrent && !b.isCurrent) return -1;
+    if (!a.isCurrent && b.isCurrent) return 1;
+    return new Date(b.startDate).getTime() - new Date(a.startDate).getTime();
+  });
+  const defaultSeasonId = orderedSeasons[0]?.id ?? "";
+  const effectiveSeasonId = selectedSeasonId || defaultSeasonId;
+
   // Fetch Teams based on selected season
   const {
     data: teamsData,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["teams", selectedSeasonId],
-    queryFn: () => teamsService.getTeams(selectedSeasonId),
-    enabled: !!selectedSeasonId,
+    queryKey: ["teams", effectiveSeasonId],
+    queryFn: () => teamsService.getTeams(effectiveSeasonId),
+    enabled: !!effectiveSeasonId,
   });
 
   // Fetch Clubs for dropdown
@@ -80,7 +88,9 @@ export default function TeamsPage() {
     createMutation.mutate(formData);
   };
 
-  const teams = teamsData?.data ?? [];
+  const teams = [...(teamsData?.data ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
 
   return (
     <div className="space-y-6">
@@ -97,12 +107,12 @@ export default function TeamsPage() {
 
         <div className="flex gap-4">
           <select
-            value={selectedSeasonId}
+            value={effectiveSeasonId}
             onChange={(e) => setSelectedSeasonId(e.target.value)}
             className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-slate-200"
           >
             <option value="">Select Season</option>
-            {seasons?.data.map((season) => (
+            {orderedSeasons.map((season) => (
               <option key={season.id} value={season.id}>
                 {season.name} ({season.league.name})
               </option>
@@ -180,7 +190,7 @@ export default function TeamsPage() {
       )}
 
       {/* Teams Table */}
-      {!selectedSeasonId ? (
+      {!effectiveSeasonId ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-slate-900 border border-slate-700 rounded-2xl">
           <p className="text-lg font-bold">No Season Selected</p>
           <p className="text-sm">Please select a season to view teams.</p>
