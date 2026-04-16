@@ -120,6 +120,13 @@
       "when": 1771084800000,
       "tag": "0016_modern_possession_intervals",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1776344700000,
+      "tag": "0017_swanky_password_column",
+      "breakpoints": true
     }
   ]
 }

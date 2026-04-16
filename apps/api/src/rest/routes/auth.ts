@@ -26,11 +26,11 @@ app.post("/login", async (c) => {
     where: eq(users.email, email),
   });
 
-  if (!user || !user.passwordHash) {
+  if (!user || !user.password) {
     return c.json({ error: "Invalid credentials" }, 401);
   }
 
-  const validPassword = await Bun.password.verify(password, user.passwordHash);
+  const validPassword = await Bun.password.verify(password, user.password);
 
   if (!validPassword) {
     return c.json({ error: "Invalid credentials" }, 401);

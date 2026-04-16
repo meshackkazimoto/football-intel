@@ -297,9 +297,9 @@ async function seed() {
   }
   
   async function seedAdmin() {
-    const email = "admin@football-intel.com";
-    const password = "admin_password_123";
-    const passwordHash = await Bun.password.hash(password);
+    const email = "admin@intel.com";
+    const password = "12341234";
+    const hashedPassword = await Bun.password.hash(password);
   
     try {
       const existing = await db.query.users.findFirst({
@@ -313,7 +313,7 @@ async function seed() {
   
       await db.insert(users).values({
         email,
-        passwordHash,
+        password: hashedPassword,
         role: "SUPER_ADMIN",
       });
   
