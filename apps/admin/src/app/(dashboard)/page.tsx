@@ -1,27 +1,65 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import {
+  Activity,
+  AlertCircle,
+  ArrowRight,
+  CalendarClock,
+  CheckCircle2,
+  Loader2,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import { adminService } from "@/services/admin/admin.service";
 import { matchesService } from "@/services/matches/matches.service";
 import { playersService } from "@/services/players/players.service";
-import { adminService } from "@/services/admin/admin.service";
+import type { Match } from "@/services/matches/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  Users,
-  ShieldCheck,
-  AlertCircle,
-  Calendar,
-  Activity,
-  Loader2,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import Link from "next/link";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+function formatDateLabel(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function getMatchStatusBadge(match: Match) {
+  if (match.status === "live") return { label: "Live", variant: "success" as const };
+  if (match.status === "finished") {
+    return { label: "Finished", variant: "secondary" as const };
+  }
+  if (match.status === "half_time") {
+    return { label: "Half Time", variant: "warning" as const };
+  }
+  return { label: "Scheduled", variant: "outline" as const };
+}
+
+function getMatchScore(match: Match) {
+  if (match.homeScore === null || match.awayScore === null) return "vs";
+  return `${match.homeScore} - ${match.awayScore}`;
+}
 
 export default function DashboardPage() {
-  const { data: matchesData } = useQuery({
+  const { data: matchesData, isLoading: matchesLoading } = useQuery({
     queryKey: ["matches", "stats"],
     queryFn: () => matchesService.getMatches({}),
   });
 
-  const { data: playersData } = useQuery({
+  const { data: playersData, isLoading: playersLoading } = useQuery({
     queryKey: ["players", "stats"],
     queryFn: () => playersService.getPlayers({}),
   });
@@ -33,144 +71,288 @@ export default function DashboardPage() {
 
   const matches = matchesData?.data ?? [];
   const players = playersData?.data ?? [];
+  const pendingLogs = logsData?.data ?? [];
+  const liveMatches = matches.filter((match) => match.status === "live");
+  const upcomingMatches = matches
+    .filter((match) => match.status === "scheduled")
+    .sort(
+      (a, b) =>
+        new Date(a.matchDate).getTime() - new Date(b.matchDate).getTime(),
+    )
+    .slice(0, 5);
+  const recentMatches = [...matches]
+    .sort(
+      (a, b) =>
+        new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime(),
+    )
+    .slice(0, 5);
 
-  const stats = [
+  const totalPendingLogs = logsData?.total ?? pendingLogs.length;
+  const playerCount = playersData?.total ?? players.length;
+
+  const summaryCards = [
     {
-      name: "Live Matches",
-      value: matches.filter((m) => m.status === "live").length.toString(),
+      title: "Live Matches",
+      value: liveMatches.length,
+      description: "Active fixtures currently under live supervision",
       icon: Activity,
-      color: "emerald",
     },
     {
-      name: "Scheduled Matches",
-      value: matches.filter((m) => m.status === "scheduled").length.toString(),
-      icon: Calendar,
-      color: "blue",
+      title: "Upcoming Fixtures",
+      value: upcomingMatches.length,
+      description: "Scheduled matches ready for operational prep",
+      icon: CalendarClock,
     },
     {
-      name: "Finished Matches",
-      value: matches.filter((m) => m.status === "finished").length.toString(),
+      title: "Pending Reviews",
+      value: totalPendingLogs,
+      description: "Ingestion items awaiting moderation",
       icon: ShieldCheck,
-      color: "indigo",
     },
     {
-      name: "Pending Verification",
-      value: (logsData?.total ?? 0).toString(),
-      icon: AlertCircle,
-      color: "rose",
+      title: "Registered Players",
+      value: playerCount,
+      description: "Profiles currently available in the registry",
+      icon: Users,
     },
   ];
 
+  const loading = matchesLoading || playersLoading || logsLoading;
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-100">Operations Dashboard</h1>
-        <p className="mt-1 text-slate-400">
-          Essential operational metrics for fixtures, players, and verification queue.
-        </p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Match operations overview</h2>
+          <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
+            A clean working surface for live coverage, scheduling, and review.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <Link href="/matches">
+              Open matches
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link href="/system-logs">Review queue</Link>
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <div key={stat.name} className="rounded-2xl border border-slate-700 bg-slate-900 p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div
-                className={cn(
-                  "rounded-xl p-2",
-                  stat.color === "emerald" && "bg-emerald-500/10 text-emerald-400",
-                  stat.color === "blue" && "bg-blue-500/10 text-blue-400",
-                  stat.color === "indigo" && "bg-indigo-500/10 text-indigo-400",
-                  stat.color === "rose" && "bg-rose-500/10 text-rose-400",
-                )}
-              >
-                <stat.icon className="h-6 w-6" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {summaryCards.map((card) => (
+          <Card key={card.title}>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+              <div className="space-y-1">
+                <CardDescription>{card.title}</CardDescription>
+                <CardTitle className="text-3xl">{card.value}</CardTitle>
               </div>
-
-              <div className="rounded-full bg-slate-800 p-1.5 text-slate-400">
-                <Activity className="h-3.5 w-3.5" />
+              <div className="rounded-md border border-[color:var(--border)] p-2">
+                <card.icon className="h-4 w-4 text-[color:var(--muted-foreground)]" />
               </div>
-            </div>
-
-            <p className="text-sm font-medium text-slate-400">{stat.name}</p>
-            <p className="mt-1 text-3xl font-bold text-slate-100">{stat.value}</p>
-          </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-[color:var(--muted-foreground)]">
+                {card.description}
+              </p>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900">
-          <div className="flex items-center justify-between border-b border-slate-700 px-6 py-5">
-            <h2 className="font-bold text-slate-100">Recent Pending Ingestions</h2>
-            <Link
-              href="/system-logs"
-              className="text-xs font-bold text-emerald-400 hover:text-emerald-300"
-            >
-              View All
-            </Link>
-          </div>
+      <div className="grid gap-4 xl:grid-cols-[1.3fr_0.9fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Operations desk</CardTitle>
+            <CardDescription>
+              Switch between live coverage and upcoming schedules.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="live" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="live">Live now</TabsTrigger>
+                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+              </TabsList>
 
-          <div className="divide-y divide-slate-800">
-            {logsLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
-              </div>
-            ) : logsData && logsData.data.length > 0 ? (
-              logsData.data.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between px-6 py-4 hover:bg-slate-800/50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-slate-300">
-                      {log.type[0]}
+              <TabsContent value="live" className="space-y-3">
+                {loading ? (
+                  <div className="flex min-h-40 items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-[color:var(--muted-foreground)]" />
+                  </div>
+                ) : liveMatches.length > 0 ? (
+                  liveMatches.map((match) => {
+                    const badge = getMatchStatusBadge(match);
+                    return (
+                      <Link
+                        key={match.id}
+                        href={`/matches/${match.id}`}
+                        className="block rounded-lg border border-[color:var(--border)] p-4 transition hover:bg-[color:var(--muted)]"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={badge.variant}>{badge.label}</Badge>
+                              <span className="text-xs text-[color:var(--muted-foreground)]">
+                                {formatDateLabel(match.matchDate)}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3 text-sm font-medium">
+                              <span>{match.homeTeam.name}</span>
+                              <span className="font-display text-2xl">
+                                {getMatchScore(match)}
+                              </span>
+                              <span>{match.awayTeam.name}</span>
+                            </div>
+                            <p className="text-sm text-[color:var(--muted-foreground)]">
+                              {match.venue ?? "Venue pending"}
+                            </p>
+                          </div>
+                          <Button variant="ghost" className="justify-start sm:justify-center">
+                            Open
+                          </Button>
+                        </div>
+                      </Link>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-lg border border-dashed border-[color:var(--border)] p-6 text-sm text-[color:var(--muted-foreground)]">
+                    No live matches right now.
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="upcoming" className="space-y-3">
+                {loading ? (
+                  <div className="flex min-h-40 items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-[color:var(--muted-foreground)]" />
+                  </div>
+                ) : upcomingMatches.length > 0 ? (
+                  upcomingMatches.map((match) => (
+                    <div
+                      key={match.id}
+                      className="rounded-lg border border-[color:var(--border)] p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">
+                            {match.homeTeam.name} vs {match.awayTeam.name}
+                          </p>
+                          <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
+                            {formatDateLabel(match.matchDate)}
+                          </p>
+                        </div>
+                        <Badge variant="outline">Scheduled</Badge>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-[color:var(--border)] p-6 text-sm text-[color:var(--muted-foreground)]">
+                    No scheduled fixtures available yet.
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Review queue</CardTitle>
+            <CardDescription>
+              Pending ingestion items that need moderation.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {logsLoading ? (
+              <div className="flex min-h-40 items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-[color:var(--muted-foreground)]" />
+              </div>
+            ) : pendingLogs.length > 0 ? (
+              pendingLogs.map((log, index) => (
+                <div key={log.id}>
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-100">{log.type} Ingested</p>
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        Source: {log.source} • {new Date(log.createdAt).toLocaleTimeString()}
+                      <div className="flex items-center gap-2">
+                        <Badge variant="warning">{log.type}</Badge>
+                        <span className="text-xs text-[color:var(--muted-foreground)]">
+                          {formatDateLabel(log.createdAt)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm font-medium">{log.source}</p>
+                      <p className="text-sm text-[color:var(--muted-foreground)]">
+                        Status: {log.status}
                       </p>
                     </div>
+                    <AlertCircle className="mt-1 h-4 w-4 text-[color:var(--warning)]" />
                   </div>
-
-                  <div className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase text-amber-400">
-                    {log.status}
-                  </div>
+                  {index < pendingLogs.length - 1 ? <Separator className="mt-3" /> : null}
                 </div>
               ))
             ) : (
-              <div className="px-6 py-10 text-center text-sm text-slate-500">No pending ingestions</div>
+              <div className="rounded-lg border border-dashed border-[color:var(--border)] p-6 text-center">
+                <CheckCircle2 className="mx-auto h-5 w-5 text-[color:var(--success)]" />
+                <p className="mt-3 text-sm font-medium">Queue is clear</p>
+                <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">
+                  New moderation items will show up here automatically.
+                </p>
+              </div>
             )}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-700 bg-slate-900 p-6">
-          <h2 className="mb-6 font-bold text-slate-100">System Health Snapshot</h2>
-
-          <div className="space-y-6">
-            <div>
-              <p className="mb-1 text-sm text-slate-400">Verification Backlog</p>
-              <p className="text-xl font-bold text-amber-400">{logsData?.total ?? 0} pending</p>
-            </div>
-
-            <div>
-              <p className="mb-1 text-sm text-slate-400">Managed Matches</p>
-              <p className="text-xl font-bold text-slate-100">{matches.length}</p>
-            </div>
-
-            <div>
-              <p className="mb-1 text-sm text-slate-400">Registered Players</p>
-              <p className="text-xl font-bold text-slate-100">{players.length}</p>
-            </div>
-
-            <div>
-              <p className="mb-1 text-sm text-slate-400">Live Coverage</p>
-              <p className="text-xl font-bold text-emerald-400">
-                {matches.filter((m) => m.status === "live").length} live now
-              </p>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Recent fixtures</CardTitle>
+            <CardDescription>
+              Most recent matches recorded in the admin workspace.
+            </CardDescription>
+          </div>
+          <Button variant="secondary" asChild>
+            <Link href="/matches">View all</Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <div className="flex min-h-32 items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-[color:var(--muted-foreground)]" />
+            </div>
+          ) : recentMatches.length > 0 ? (
+            recentMatches.map((match) => {
+              const badge = getMatchStatusBadge(match);
+              return (
+                <Link
+                  key={match.id}
+                  href={`/matches/${match.id}`}
+                  className="flex flex-col gap-3 rounded-lg border border-[color:var(--border)] p-4 transition hover:bg-[color:var(--muted)] sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={badge.variant}>{badge.label}</Badge>
+                      <span className="text-xs text-[color:var(--muted-foreground)]">
+                        {formatDateLabel(match.matchDate)}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm font-medium">
+                      {match.homeTeam.name} {getMatchScore(match)} {match.awayTeam.name}
+                    </p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-[color:var(--muted-foreground)]" />
+                </Link>
+              );
+            })
+          ) : (
+            <div className="rounded-lg border border-dashed border-[color:var(--border)] p-6 text-sm text-[color:var(--muted-foreground)]">
+              No match activity yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,91 +1,61 @@
 "use client";
 
-import { Bell, Search, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Menu, Search } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-export function Header() {
+const routeLabels: Record<string, { section: string; title: string }> = {
+  "/": { section: "Overview", title: "Dashboard" },
+  "/matches": { section: "Operations", title: "Matches" },
+  "/fixtures": { section: "Planning", title: "Fixtures" },
+  "/standings": { section: "Competition", title: "Standings" },
+  "/players": { section: "Registry", title: "Players" },
+  "/teams": { section: "Registry", title: "Teams" },
+  "/system-logs": { section: "Integrity", title: "System Logs" },
+};
+
+export function Header({
+  onOpenNavigation,
+}: {
+  onOpenNavigation: () => void;
+}) {
+  const pathname = usePathname();
+  const matchedRoute =
+    Object.entries(routeLabels).find(([route]) =>
+      route === "/" ? pathname === route : pathname.startsWith(route),
+    )?.[1] ?? routeLabels["/"];
+
   return (
-    <header
-      className={cn(
-        "h-16 sticky top-0 z-10 px-8",
-        "flex items-center justify-between",
-        "border-b border-slate-700/60",
-        "bg-slate-900/60 backdrop-blur-md",
-        "transition-shadow duration-200",
-      )}
-    >
-      {/* Left: Search */}
-      <div className="flex items-center gap-4 flex-1">
-        <div className="relative w-96 max-w-md group">
-          <Search
-            className={cn(
-              "absolute left-3 top-1/2 -translate-y-1/2",
-              "text-slate-400 w-4 h-4",
-              "group-focus-within:text-emerald-400",
-              "transition-colors",
-            )}
-          />
-          <input
-            type="text"
-            placeholder="Search for players, matches, or clubs..."
-            className={cn(
-              "w-full pl-10 pr-4 py-2",
-              "bg-slate-800/70 border border-slate-700",
-              "rounded-xl outline-none",
-              "text-sm text-slate-100",
-              "placeholder:text-slate-400",
-              "focus:ring-2 focus:ring-emerald-500/20",
-              "focus:border-emerald-500",
-              "transition-all",
-            )}
-          />
+    <header className="sticky top-0 z-20 border-b border-[color:var(--border)] bg-[color:var(--background)]/95 backdrop-blur supports-[backdrop-filter]:bg-[color:var(--background)]/80">
+      <div className="flex h-16 items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onOpenNavigation}
+          className="lg:hidden"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
+
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-[color:var(--muted-foreground)]">
+            {matchedRoute.section}
+          </p>
+          <h1 className="text-lg font-semibold text-[color:var(--foreground)]">
+            {matchedRoute.title}
+          </h1>
         </div>
-      </div>
 
-      {/* Right: Actions */}
-      <div className="flex items-center gap-4">
-        <button
-          className={cn(
-            "p-2 text-slate-300",
-            "hover:text-white hover:bg-slate-800",
-            "rounded-full transition-colors relative",
-          )}
-        >
-          <Bell className="w-5 h-5" />
-          <span
-            className={cn(
-              "absolute top-2 right-2",
-              "w-2 h-2 bg-rose-500",
-              "rounded-full border-2 border-slate-900",
-            )}
-          />
-        </button>
-
-        <div className="h-8 w-px bg-slate-700 mx-2" />
-
-        <button
-          className={cn(
-            "flex items-center gap-3",
-            "px-2 py-1.5 rounded-lg",
-            "hover:bg-slate-800 transition-all group",
-          )}
-        >
-          <div
-            className={cn(
-              "h-8 w-8 rounded-full",
-              "bg-emerald-500/20 border border-emerald-500/30",
-              "flex items-center justify-center",
-            )}
-          >
-            <User className="w-5 h-5 text-emerald-400" />
+        <div className="ml-auto hidden w-full max-w-sm items-center md:flex">
+          <div className="relative w-full">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted-foreground)]" />
+            <Input
+              placeholder="Search"
+              className="pl-9"
+            />
           </div>
-          <div className="text-left">
-            <p className="text-sm font-semibold text-slate-100 leading-none">
-              Admin User
-            </p>
-            <p className="text-xs text-slate-400 mt-1">Super Admin</p>
-          </div>
-        </button>
+        </div>
       </div>
     </header>
   );

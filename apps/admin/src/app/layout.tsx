@@ -1,17 +1,23 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Barlow_Condensed, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 
-const poppins = Poppins({
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+const bodyFont = IBM_Plex_Sans({
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
-  variable: "--font-poppins",
+  variable: "--font-body",
+});
+
+const displayFont = Barlow_Condensed({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+  variable: "--font-display",
 });
 
 export const metadata: Metadata = {
-  title: "Football-Intel Admin | Control Room",
-  description: "Internal management platform for Tanzanian Football Data",
+  title: "Football Intel Admin | Match Control Room",
+  description: "Broadcast-grade operations workspace for Tanzanian football data teams.",
 };
 
 export default function RootLayout({
@@ -21,7 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning className={`${poppins.variable} font-sans antialiased bg-slate-50`}>
+      <body
+        suppressHydrationWarning
+        className={`${bodyFont.variable} ${displayFont.variable} antialiased`}
+      >
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
