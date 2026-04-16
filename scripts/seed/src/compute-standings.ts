@@ -2,9 +2,8 @@ import { db } from "@football-intel/db/src/client";
 import {
   matches,
   leagueStandings,
-  teams
 } from "@football-intel/db/src/schema/core";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 async function computeStandings() {
   console.log("Computing league standings...");
@@ -80,31 +79,60 @@ async function computeStandings() {
     }
   }
 
+  const rowsBySeason = new Map<string, Array<(typeof table extends Map<any, infer V> ? V : never)>>();
+
   for (const row of table.values()) {
-    await db
-      .insert(leagueStandings)
-      .values({
-        ...row,
-        goalDifference: row.goalsFor - row.goalsAgainst,
-        lastComputedAt: new Date()
-      })
-      .onConflictDoUpdate({
-        target: [
-          leagueStandings.seasonId,
-          leagueStandings.teamId
-        ],
-        set: {
-          played: row.played,
-          wins: row.wins,
-          draws: row.draws,
-          losses: row.losses,
-          goalsFor: row.goalsFor,
-          goalsAgainst: row.goalsAgainst,
-          goalDifference: row.goalsFor - row.goalsAgainst,
-          points: row.points,
-          lastComputedAt: new Date()
-        }
-      });
+    const seasonRows = rowsBySeason.get(row.seasonId) ?? [];
+    seasonRows.push(row);
+    rowsBySeason.set(row.seasonId, seasonRows);
+  }
+
+  for (const seasonRows of rowsBySeason.values()) {
+    seasonRows.sort((a, b) => {
+      const pointsDiff = b.points - a.points;
+      if (pointsDiff !== 0) return pointsDiff;
+
+      const goalDifferenceDiff =
+        (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst);
+      if (goalDifferenceDiff !== 0) return goalDifferenceDiff;
+
+      const goalsForDiff = b.goalsFor - a.goalsFor;
+      if (goalsForDiff !== 0) return goalsForDiff;
+
+      return a.teamId.localeCompare(b.teamId);
+    });
+
+    for (const [index, row] of seasonRows.entries()) {
+      const goalDifference = row.goalsFor - row.goalsAgainst;
+      const lastComputedAt = new Date();
+
+      await db
+        .insert(leagueStandings)
+        .values({
+          ...row,
+          position: index + 1,
+          goalDifference,
+          lastComputedAt
+        })
+        .onConflictDoUpdate({
+          target: [
+            leagueStandings.seasonId,
+            leagueStandings.teamId
+          ],
+          set: {
+            position: index + 1,
+            played: row.played,
+            wins: row.wins,
+            draws: row.draws,
+            losses: row.losses,
+            goalsFor: row.goalsFor,
+            goalsAgainst: row.goalsAgainst,
+            goalDifference,
+            points: row.points,
+            lastComputedAt
+          }
+        });
+    }
   }
 
   console.log("League standings computed");
